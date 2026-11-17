@@ -64,9 +64,16 @@ fn craft_i18n() -> String {
     let mut o = String::from("/// (locale, shared catalog, WordCraft's catalog), one entry per locale; `\"\"` for a missing file.\n");
     o.push_str("pub static CRAFT_I18N: &craft_i18n::Embedded = &[\n");
     for (code, shared, app) in entries {
-        // `{:?}` escapes the path (Windows backslashes) as a Rust string literal.
-        let shared = shared.map_or_else(|| "\"\"".to_string(), |p| format!("include_str!({p:?})"));
-        let _ = writeln!(o, "    ({code:?}, {shared}, include_str!({app:?})),");
+        let read_catalog = |path: &std::path::Path| match std::fs::read_to_string(path) {
+            Ok(catalog) => catalog.replace("WordCraft", "Word AW"),
+            Err(error) => {
+                println!("cargo::error=Cannot read {}: {error}", path.display());
+                String::new()
+            }
+        };
+        let shared = shared.as_deref().map_or_else(String::new, read_catalog);
+        let app = read_catalog(&app);
+        let _ = writeln!(o, "    ({code:?}, {shared:?}, {app:?}),");
     }
     o.push_str("];\n");
     o

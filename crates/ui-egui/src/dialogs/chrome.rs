@@ -219,8 +219,8 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
         Dialog::Refs(d) => d.title(),
         Dialog::Icons { .. } => "Icons",
         Dialog::PasteSpecial { .. } => "Paste Special",
-        Dialog::About { .. } => "About WordCraft",
-        Dialog::SaveChanges { .. } => "WordCraft",
+        Dialog::About { .. } => "About Word AW",
+        Dialog::SaveChanges { .. } => "Word AW",
         Dialog::DiscardRecovery { .. } => "Discard recovery copy",
         Dialog::RecipientList { .. } => "Recipient List",
         Dialog::SelectTable { .. } => "Select Table",
@@ -254,9 +254,7 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
     let style = ctx.style_of(ctx.theme());
     let frame = egui::Frame::window(&style);
     let window = egui::Window::new(match title {
-        "About WordCraft" if crate::i18n::current().code() == "pt-br" => "Sobre o Word AW",
-        "About WordCraft" => "About Word AW",
-        "WordCraft" => "Word AW",
+        "About Word AW" if crate::i18n::current().code() == "pt-br" => "Sobre o Word AW",
         _ => tl!(title),
     })
     .id(id)

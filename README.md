@@ -4,7 +4,7 @@
 
 # Word AW
 
-O **Word AW** é um editor de documentos para uso interno na Alimentos Wilson. Caio Rodrigues criou esta edição a partir do [WordCraft](https://github.com/storytold/wordcraft) para preparar documentos como comunicados, procedimentos e relatórios.
+O **Word AW** é um editor de documentos para uso interno na Alimentos Wilson. Caio Rodrigues criou esta edição para preparar documentos como comunicados, procedimentos e relatórios.
 
 O aplicativo abre e salva arquivos `.docx`, oferece interface em português e tem temas claro e escuro. No menu **Arquivo** estão os comandos para criar, abrir, salvar, imprimir e exportar documentos. Em **Conta**, cada pessoa pode personalizar seu perfil local.
 

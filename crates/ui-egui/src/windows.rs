@@ -41,7 +41,7 @@ pub(crate) mod arrange;
 
 /// The window title for a document called `name`.
 pub(crate) fn title(name: &str, dirty: bool) -> String {
-    format!("{name}{} - WordCraft", if dirty { " •" } else { "" })
+    format!("{name}{} - Word AW", if dirty { " •" } else { "" })
 }
 
 /// An open window.
