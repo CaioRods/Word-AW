@@ -57,7 +57,7 @@ fn back_chevron_c(band_min_x: f32, center_y: f32, fullscreen: bool, content_left
 }
 
 fn animation_id(ctx: &egui::Context) -> egui::Id {
-    egui::Id::new(("word-aw-backstage-motion", ctx.viewport_id()))
+    egui::Id::unique(("word-aw-backstage-motion", ctx.viewport_id()))
 }
 
 pub(crate) fn reset_animation(ctx: &egui::Context) {
