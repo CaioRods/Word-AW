@@ -177,54 +177,56 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 let at = pos2(crate::rtl::lead_x(rtl, brand, 21.0), brand.center().y);
                 ui.painter().text(at, crate::rtl::lead_center(rtl), "Word AW", semibold(17.0), t.nav_ink);
                 ui.add_space(5.0);
-                for (id, label, icon) in PAGES {
-                    if matches!(id, "save" | "options") {
-                        ui.add_space(6.0);
-                        let (band, _) = ui.allocate_exact_size(vec2(200.0, 7.0), Sense::hover());
-                        ui.painter().hline(
-                            band.left() + 18.0..=band.right() - 18.0,
-                            band.center().y,
-                            Stroke::new(1.0, t.nav_ink.gamma_multiply(0.22)),
+                egui::ScrollArea::vertical().max_height((ui.available_height() - 48.0).max(0.0)).auto_shrink([false, true]).show(ui, |ui| {
+                    for (id, label, icon) in PAGES {
+                        if matches!(id, "save" | "options") {
+                            ui.add_space(6.0);
+                            let (band, _) = ui.allocate_exact_size(vec2(200.0, 7.0), Sense::hover());
+                            ui.painter().hline(
+                                band.left() + 18.0..=band.right() - 18.0,
+                                band.center().y,
+                                Stroke::new(1.0, t.nav_ink.gamma_multiply(0.22)),
+                            );
+                            ui.add_space(5.0);
+                        }
+                        // No document open (#1129): Info, Save, Save As, Print and Export are greyed out.
+                        let on = has_document || works_without_document(id);
+                        let (r, resp) = ui.add_enabled_ui(on, |ui| ui.allocate_exact_size(vec2(200.0, 38.0), Sense::click())).inner;
+                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, on, tl!(label)));
+                        let active = app.ui.backstage_page == id;
+                        if active {
+                            ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(55));
+                            let marker = Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 14.0), r.center().y), vec2(3.0, 15.0));
+                            ui.painter().rect_filled(marker, 2, if t.dark { egui::Color32::from_rgb(135, 44, 35) } else { t.secondary });
+                        } else if on && (resp.hovered() || resp.has_focus()) {
+                            ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(26));
+                        }
+                        let ink = if on { t.nav_ink } else { t.nav_ink.gamma_multiply(0.63) };
+                        icons::paint(
+                            ui.painter(),
+                            Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 31.0), r.center().y), vec2(18.0, 18.0)),
+                            icon,
+                            ink,
+                            ink,
                         );
-                        ui.add_space(5.0);
+                        ui.painter().text(
+                            pos2(crate::rtl::lead_x(rtl, r, 52.0), r.center().y),
+                            crate::rtl::lead_center(rtl),
+                            tl!(label),
+                            if active { semibold(14.0) } else { medium(14.0) },
+                            ink,
+                        );
+                        if on
+                            && app.ui.keytips == crate::keytips::Phase::Backstage
+                            && let Some(letter) = keytip_letter(id)
+                        {
+                            crate::keytips::badge(ui, Rect::from_min_size(pos2(r.min.x + 16.0, r.min.y), vec2(20.0, 16.0)), letter);
+                        }
+                        if resp.clicked() {
+                            go_to_page(app, id);
+                        }
                     }
-                    // No document open (#1129): Info, Save, Save As, Print and Export are greyed out.
-                    let on = has_document || works_without_document(id);
-                    let (r, resp) = ui.add_enabled_ui(on, |ui| ui.allocate_exact_size(vec2(200.0, 38.0), Sense::click())).inner;
-                    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, on, tl!(label)));
-                    let active = app.ui.backstage_page == id;
-                    if active {
-                        ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(55));
-                        let marker = Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 14.0), r.center().y), vec2(3.0, 15.0));
-                        ui.painter().rect_filled(marker, 2, if t.dark { egui::Color32::from_rgb(135, 44, 35) } else { t.secondary });
-                    } else if on && (resp.hovered() || resp.has_focus()) {
-                        ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(26));
-                    }
-                    let ink = if on { t.nav_ink } else { t.nav_ink.gamma_multiply(0.63) };
-                    icons::paint(
-                        ui.painter(),
-                        Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 31.0), r.center().y), vec2(18.0, 18.0)),
-                        icon,
-                        ink,
-                        ink,
-                    );
-                    ui.painter().text(
-                        pos2(crate::rtl::lead_x(rtl, r, 52.0), r.center().y),
-                        crate::rtl::lead_center(rtl),
-                        tl!(label),
-                        if active { semibold(14.0) } else { medium(14.0) },
-                        ink,
-                    );
-                    if on
-                        && app.ui.keytips == crate::keytips::Phase::Backstage
-                        && let Some(letter) = keytip_letter(id)
-                    {
-                        crate::keytips::badge(ui, Rect::from_min_size(pos2(r.min.x + 16.0, r.min.y), vec2(20.0, 16.0)), letter);
-                    }
-                    if resp.clicked() {
-                        go_to_page(app, id);
-                    }
-                }
+                });
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                     let (row, response) = ui.allocate_exact_size(vec2(200.0, 42.0), Sense::click());
                     let label = tl!("About");
