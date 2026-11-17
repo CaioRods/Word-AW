@@ -1038,6 +1038,7 @@ fn backstage_save_closes_when_saved() {
 #[test]
 fn backstage_close_asks_then_closes() {
     let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    a.ui.language = "en".into();
     a.run("text.insert", json!({"text": "Draft"})).unwrap();
     a.run("ui.backstage", json!({"value": true, "page": "info"})).unwrap();
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
@@ -1071,6 +1072,7 @@ fn backstage_close_asks_then_closes() {
 #[test]
 fn backstage_close_on_a_clean_document_closes_at_once() {
     let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    a.ui.language = "en".into();
     a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
         |ui, app: &mut WordApp| {

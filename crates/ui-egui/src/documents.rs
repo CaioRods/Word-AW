@@ -318,7 +318,9 @@ mod tests {
     use crate::{Services, WordApp};
 
     fn app() -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default())
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        app.ui.language = "en".into();
+        app
     }
 
     fn harness(a: WordApp) -> egui_kittest::Harness<'static, WordApp> {
