@@ -61,7 +61,8 @@ fn animation_id(ctx: &egui::Context) -> egui::Id {
 }
 
 pub(crate) fn reset_animation(ctx: &egui::Context) {
-    ctx.data_mut(|data| data.remove::<(f64, String, f64)>(animation_id(ctx)));
+    let id = animation_id(ctx);
+    ctx.data_mut(|data| data.remove::<(f64, String, f64)>(id));
 }
 
 fn motion(ui: &Ui, page: &str) -> (f32, f32) {
@@ -69,8 +70,9 @@ fn motion(ui: &Ui, page: &str) -> (f32, f32) {
         return (1.0, 1.0);
     }
     let now = ui.input(|i| i.time);
+    let id = animation_id(ui.ctx());
     let (opened, _, changed) = ui.ctx().data_mut(|data| {
-        let state = data.get_temp_mut_or_insert_with(animation_id(ui.ctx()), || (now, page.to_owned(), now));
+        let state = data.get_temp_mut_or_insert_with(id, || (now, page.to_owned(), now));
         if state.1 != page {
             state.1 = page.to_owned();
             state.2 = now;
