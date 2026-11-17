@@ -1160,50 +1160,48 @@ fn about_dialog(ui: &mut Ui, d: &mut Dialog) -> bool {
     let Dialog::About { tab } = d else {
         return false;
     };
-    ui.set_width(if *tab == 0 { 510.0 } else { 820.0 });
-    let names = [tl!("About").to_string(), tl!("Contributors").to_string(), tl!("Models").to_string(), tl!("Language data").to_string()];
-    if let Some(i) = crate::widgets::dialog_tabs(ui, &names, *tab as usize) {
-        *tab = i as u8;
-    }
-    ui.add_space(6.0);
-    match *tab {
-        1 => crate::credits::contributors_ui(ui),
-        2 => crate::credits::models_ui(ui),
-        3 => crate::language_packs::about_tab(ui),
-        _ => {
-            let pt = crate::i18n::current().code() == "pt-br";
-            ui.vertical_centered(|ui| {
-                let id = egui::Id::unique("word-aw-wilson-logo");
-                let mut texture = ui.ctx().data_mut(|data| data.get_temp::<egui::TextureHandle>(id));
-                if texture.is_none()
-                    && let Ok(image) =
-                        image::load_from_memory_with_format(include_bytes!("../../../../assets/wilson/logo.png"), image::ImageFormat::Png)
-                {
-                    let rgba = image.into_rgba8();
-                    let pixels = egui::ColorImage::from_rgba_unmultiplied([rgba.width() as usize, rgba.height() as usize], rgba.as_raw());
-                    let logo = ui.ctx().load_texture("Alimentos Wilson", pixels, egui::TextureOptions::LINEAR);
-                    ui.ctx().data_mut(|data| data.insert_temp(id, logo.clone()));
-                    texture = Some(logo);
-                }
-                if let Some(texture) = texture {
-                    ui.add(egui::Image::new((texture.id(), texture.size_vec2() * (156.0 / texture.size_vec2().x))).alt_text("Alimentos Wilson"));
-                }
-                ui.label(egui::RichText::new("Word AW").font(semibold(26.0)));
-                let version = env!("CARGO_PKG_VERSION");
-                ui.label(if pt { format!("Versão {version}") } else { format!("Version {version}") });
-                ui.add_space(10.0);
-                ui.label(if pt { "Autor da edição" } else { "Edition author" });
-                ui.label(egui::RichText::new("Caio Victor Rodrigues").strong());
-                ui.add_space(10.0);
-                ui.separator();
-                ui.label(egui::RichText::new("Cera ao Sol").color(Tokens::get(ui.ctx()).accent).strong());
-                ui.hyperlink_to(
-                    if pt { "Licenças e atribuições" } else { "Licenses and attribution" },
-                    "https://github.com/storytold/wordcraft/blob/v0.18.1/NOTICE",
-                );
-            });
+    if *tab != 0 {
+        ui.set_width(820.0);
+        match *tab {
+            1 => crate::credits::contributors_ui(ui),
+            2 => crate::credits::models_ui(ui),
+            3 => crate::language_packs::about_tab(ui),
+            _ => {}
         }
+        return super::chrome::close_button(ui);
     }
+    ui.set_width(390.0);
+    ui.add_space(6.0);
+    let pt = crate::i18n::current().code() == "pt-br";
+    ui.vertical_centered(|ui| {
+        let id = egui::Id::unique("word-aw-wilson-logo");
+        let mut texture = ui.ctx().data_mut(|data| data.get_temp::<egui::TextureHandle>(id));
+        if texture.is_none()
+            && let Ok(image) = image::load_from_memory_with_format(include_bytes!("../../../../assets/wilson/logo.png"), image::ImageFormat::Png)
+        {
+            let rgba = image.into_rgba8();
+            let pixels = egui::ColorImage::from_rgba_unmultiplied([rgba.width() as usize, rgba.height() as usize], rgba.as_raw());
+            let logo = ui.ctx().load_texture("Alimentos Wilson", pixels, egui::TextureOptions::LINEAR);
+            ui.ctx().data_mut(|data| data.insert_temp(id, logo.clone()));
+            texture = Some(logo);
+        }
+        if let Some(texture) = texture {
+            ui.add(egui::Image::new((texture.id(), texture.size_vec2() * (156.0 / texture.size_vec2().x))).alt_text("Alimentos Wilson"));
+        }
+        ui.label(egui::RichText::new("Word AW").font(semibold(26.0)));
+        let version = env!("CARGO_PKG_VERSION");
+        ui.label(if pt { format!("Versão {version}") } else { format!("Version {version}") });
+        ui.add_space(10.0);
+        ui.label(if pt { "Autor da edição" } else { "Edition author" });
+        ui.label(egui::RichText::new("Caio Victor Rodrigues").strong());
+        ui.add_space(10.0);
+        ui.separator();
+        ui.label(egui::RichText::new("Cera ao Sol").color(Tokens::get(ui.ctx()).accent).strong());
+        ui.hyperlink_to(
+            if pt { "Licenças e atribuições" } else { "Licenses and attribution" },
+            "https://github.com/CaioRods/Word-AW/blob/wordaw/NOTICE",
+        );
+    });
     // One Close button: About has nothing to cancel.
     super::chrome::close_button(ui)
 }

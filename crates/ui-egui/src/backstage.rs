@@ -56,17 +56,6 @@ fn back_chevron_c(band_min_x: f32, center_y: f32, fullscreen: bool, content_left
     pos2(band_min_x + x, center_y)
 }
 
-/// The bottom of the backstage menu: About, and the community link unless the user turned the
-/// community button off — the title bar pill honors the same setting, so the menu hides the
-/// link with it.
-fn bottom_links(app: &WordApp) -> Vec<(&'static str, &'static str)> {
-    let mut links = vec![("About", "about")];
-    if app.ui.show_discord {
-        links.push(("Discord community", "discord"));
-    }
-    links
-}
-
 fn animation_id() -> egui::Id {
     egui::Id::unique("word-aw-backstage-motion")
 }
@@ -184,18 +173,32 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     app.canvas.want_focus = true;
                 }
                 ui.add_space(if mac { 12.0 } else { 6.0 });
+                let (brand, _) = ui.allocate_exact_size(vec2(200.0, 30.0), Sense::hover());
+                let at = pos2(crate::rtl::lead_x(rtl, brand, 21.0), brand.center().y);
+                ui.painter().text(at, crate::rtl::lead_center(rtl), "Word AW", semibold(17.0), t.nav_ink);
+                ui.add_space(5.0);
                 for (id, label, icon) in PAGES {
+                    if matches!(id, "save" | "options") {
+                        ui.add_space(6.0);
+                        let (band, _) = ui.allocate_exact_size(vec2(200.0, 7.0), Sense::hover());
+                        ui.painter().hline(
+                            band.left() + 18.0..=band.right() - 18.0,
+                            band.center().y,
+                            Stroke::new(1.0, t.nav_ink.gamma_multiply(0.22)),
+                        );
+                        ui.add_space(5.0);
+                    }
                     // No document open (#1129): Info, Save, Save As, Print and Export are greyed out.
                     let on = has_document || works_without_document(id);
                     let (r, resp) = ui.add_enabled_ui(on, |ui| ui.allocate_exact_size(vec2(200.0, 38.0), Sense::click())).inner;
                     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, on, tl!(label)));
                     let active = app.ui.backstage_page == id;
                     if active {
-                        ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(55));
+                        ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(55));
                         let marker = Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 14.0), r.center().y), vec2(3.0, 15.0));
                         ui.painter().rect_filled(marker, 2, if t.dark { egui::Color32::from_rgb(135, 44, 35) } else { t.secondary });
-                    } else if on && resp.hovered() {
-                        ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(26));
+                    } else if on && (resp.hovered() || resp.has_focus()) {
+                        ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(26));
                     }
                     let ink = if on { t.nav_ink } else { t.nav_ink.gamma_multiply(0.63) };
                     icons::paint(
@@ -223,21 +226,17 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     }
                 }
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                    for (label, id) in bottom_links(app) {
-                        let (r, resp) = ui.allocate_exact_size(vec2(200.0, 32.0), Sense::click());
-                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), tl!(label)));
-                        if resp.hovered() {
-                            ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(26));
-                        }
-                        let at = pos2(crate::rtl::lead_x(rtl, r, 22.0), r.center().y);
-                        ui.painter().text(at, crate::rtl::lead_center(rtl), tl!(label), regular(13.0), t.nav_ink);
-                        if resp.clicked() {
-                            if id == "discord" {
-                                let _ = app.run("ui.discord", json!({}));
-                            } else {
-                                app.dialog = crate::dialogs::Dialog::open("about", app);
-                            }
-                        }
+                    let (row, response) = ui.allocate_exact_size(vec2(200.0, 42.0), Sense::click());
+                    let label = tl!("About");
+                    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
+                    let pill = row.shrink2(vec2(12.0, 3.0));
+                    ui.painter().rect_filled(pill, 11, egui::Color32::from_white_alpha(if response.hovered() { 85 } else { 48 }));
+                    let icon = pos2(crate::rtl::lead_x(rtl, row, 30.0), row.center().y);
+                    icons::paint(ui.painter(), Rect::from_center_size(icon, vec2(16.0, 16.0)), "info", t.nav_ink, t.nav_ink);
+                    let text = pos2(crate::rtl::lead_x(rtl, row, 52.0), row.center().y);
+                    ui.painter().text(text, crate::rtl::lead_center(rtl), label, semibold(14.0), t.nav_ink);
+                    if response.clicked() {
+                        app.dialog = crate::dialogs::Dialog::open("about", app);
                     }
                 });
             });
