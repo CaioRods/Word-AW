@@ -127,8 +127,7 @@ impl Windows {
         self.native
     }
 
-    /// One window for every document, as in the web app.
-    #[cfg(test)]
+    /// Keep all open documents in a shared window.
     pub(crate) fn single(&mut self) {
         self.native = false;
     }
@@ -322,6 +321,11 @@ impl WordApp {
     /// place are the app's.
     pub fn set_window_builder(&mut self, builder: egui::ViewportBuilder) {
         self.windows.builder = builder;
+    }
+
+    /// Shows open documents as tabs sharing the initial window.
+    pub fn use_document_tabs(&mut self) {
+        self.windows.single();
     }
 
     /// The viewport builder that new windows start from.

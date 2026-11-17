@@ -22,6 +22,8 @@ mod file_dialogs;
 mod graphics;
 mod logging;
 mod print;
+#[cfg(windows)]
+mod open_requests;
 mod region;
 #[cfg(target_os = "macos")]
 mod traffic_lights;
@@ -45,6 +47,7 @@ struct App(
     // a hidden logic tick.
     RawWindowState,
     #[cfg(target_os = "macos")] fmv_macos_events::Inbox,
+    #[cfg(windows)] Option<open_requests::OpenRequests>,
 );
 
 impl eframe::App for App {
@@ -54,6 +57,19 @@ impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_os = "macos")]
         apple_events::poll(&self.5, &mut self.0, ctx);
+        #[cfg(windows)]
+        if let Some(requests) = &self.5 {
+            requests.poll(ctx, |path| {
+                if let Some(path) = path.to_str() {
+                    if let Err(error) = self.0.open_from_platform(path, None) {
+                        self.0.report_open_failure(path, &error);
+                    }
+                    self.0.ui.backstage = false;
+                } else {
+                    open_non_unicode(&mut self.0, path);
+                }
+            });
+        }
         self.0.logic(ctx);
         self.3.show(frame);
         let mut window = self.4;
@@ -539,6 +555,21 @@ fn main() -> eframe::Result {
         let _ = std::io::Write::write_fmt(&mut std::io::stderr(), format_args!("wordcraft: --control needs a port number from 1 to 65535{got}\n"));
         std::process::exit(2);
     }
+    #[cfg(windows)]
+    let requests = if prefs_enabled() && control_port.is_none() && !sample {
+        let paths = files.iter().map(std::path::PathBuf::from).chain(other_files.iter().cloned()).collect::<Vec<_>>();
+        match open_requests::OpenRequests::start("Word AW", &paths) {
+            Ok(Some(requests)) => Some(requests),
+            Ok(None) => return Ok(()),
+            Err(error) => {
+                log::warn!("could not reuse the Word AW window: {error}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     // The log file lives in the settings directory, next to the preferences; opened after the
     // arguments, so `--version` leaves no file behind. Records logged until now are written to it
     // first. Runs without preferences (agents' test runs) log to standard error only, so they
@@ -640,6 +671,7 @@ fn main() -> eframe::Result {
             }
             app.ui.window = restored;
             app.set_window_builder(window_builder);
+            app.use_document_tabs();
             app.integrated_titlebar = cfg!(target_os = "macos");
             #[cfg(target_os = "macos")]
             if let Some(bar) = traffic_lights::title_bar() {
@@ -677,6 +709,8 @@ fn main() -> eframe::Result {
                 RawWindowState::default(),
                 #[cfg(target_os = "macos")]
                 apple_events.connect(&cc.egui_ctx),
+                    #[cfg(windows)]
+                    requests,
             )))
         }),
     )

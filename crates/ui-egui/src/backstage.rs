@@ -56,12 +56,12 @@ fn back_chevron_c(band_min_x: f32, center_y: f32, fullscreen: bool, content_left
     pos2(band_min_x + x, center_y)
 }
 
-fn animation_id() -> egui::Id {
-    egui::Id::unique("word-aw-backstage-motion")
+fn animation_id(ctx: &egui::Context) -> egui::Id {
+    egui::Id::new(("word-aw-backstage-motion", ctx.viewport_id()))
 }
 
 pub(crate) fn reset_animation(ctx: &egui::Context) {
-    ctx.data_mut(|data| data.remove::<(f64, String, f64)>(animation_id()));
+    ctx.data_mut(|data| data.remove::<(f64, String, f64)>(animation_id(ctx)));
 }
 
 fn motion(ui: &Ui, page: &str) -> (f32, f32) {
@@ -70,7 +70,7 @@ fn motion(ui: &Ui, page: &str) -> (f32, f32) {
     }
     let now = ui.input(|i| i.time);
     let (opened, _, changed) = ui.ctx().data_mut(|data| {
-        let state = data.get_temp_mut_or_insert_with(animation_id(), || (now, page.to_owned(), now));
+        let state = data.get_temp_mut_or_insert_with(animation_id(ui.ctx()), || (now, page.to_owned(), now));
         if state.1 != page {
             state.1 = page.to_owned();
             state.2 = now;
@@ -119,13 +119,17 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         .show(ui, |ui| {
             // Right to left the navigation is on the right, away from the macOS traffic lights.
             let rtl = crate::rtl::on();
-            let direction = if rtl { 1.0 } else { -1.0 };
-            let offset = vec2(direction * 96.0 * (1.0 - nav_progress), 0.0);
+            // Animate the paint without moving the menu's click targets or the macOS drag band.
             let clip = ui.clip_rect();
-            gradient(ui, clip.translate(offset), t.nav, t.nav_end);
-            let content = ui.max_rect().translate(offset);
-            ui.scope_builder(egui::UiBuilder::new().max_rect(content), |ui| {
-                ui.set_clip_rect(clip.intersect(clip.translate(offset)));
+            gradient(ui, clip, t.nav, t.nav_end);
+            if nav_progress < 1.0 {
+                let x = crate::rtl::lead_x(rtl, clip, clip.width() * nav_progress);
+                let reveal = if rtl { Rect::from_min_max(clip.min, pos2(x, clip.bottom())) }
+                    else { Rect::from_min_max(pos2(x, clip.top()), clip.max) };
+                ui.painter().rect_filled(reveal, 0.0, t.ribbon.gamma_multiply(0.24 * (1.0 - nav_progress)));
+            }
+            ui.scope(|ui| {
+                ui.multiply_opacity(0.80 + 0.20 * nav_progress);
                 let back = if mac {
                     // macOS (#222): the Backstage covers the title bar, so its top band is the title
                     // bar: the back button sits beside the traffic lights, centred with them and as far

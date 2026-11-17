@@ -252,6 +252,34 @@ pub(crate) fn untitled_title(english: &str) -> Option<String> {
     })
 }
 
+/// The documents open in this window, with a dot for unsaved changes.
+pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
+    if app.windows.native() {
+        return;
+    }
+    let docs = app.session.documents();
+    if docs.len() < 2 {
+        return;
+    }
+
+    let t = crate::theme::Tokens::get(ui.ctx());
+    egui::Panel::top("document_tabs").frame(egui::Frame::NONE.fill(t.canvas).inner_margin(egui::Margin::symmetric(8, 4))).show(ui, |ui| {
+        egui::ScrollArea::horizontal().id_salt("document_tab_scroll").auto_shrink([false, true]).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                for doc in docs {
+                    let label = format!("{}{}", if doc.dirty { "● " } else { "" }, display_title(&doc));
+                    let response = ui.push_id(doc.id, |ui| {
+                        ui.add(egui::Button::selectable(doc.active, &label).min_size(egui::vec2(70.0, 25.0))).on_hover_text(&label)
+                    }).inner;
+                    if !doc.active && response.clicked() {
+                        let _ = app.run("view.switchWindows", json!({"id": doc.id}));
+                    }
+                }
+            });
+        });
+    });
+}
+
 /// View › Window › Switch Windows: the open windows (in one window, the open documents) in the
 /// order they were opened, this one marked, unsaved ones with the title bar's dot. Choosing one
 /// brings that window to the front (in one window, shows the document).
@@ -303,6 +331,44 @@ mod tests {
 
     fn prompt(a: &WordApp) -> Option<&'static str> {
         a.dialog.as_ref().map(|d| d.name())
+    }
+
+    #[test]
+    fn document_tabs_keep_separate_drafts_in_one_window() {
+        use egui_kittest::kittest::Queryable;
+        let mut a = app();
+        a.use_document_tabs();
+        a.run("text.insert", json!({"text": "First draft"})).unwrap();
+        let first = a.session.document_id();
+        let mut h = harness(a);
+        h.run_steps(4);
+        h.get_by_label("File").click();
+        h.run_steps(3);
+        h.get_by_label("New").click();
+        h.run_steps(3);
+        h.get_by_label("Blank document").click();
+        h.run_steps(4);
+        let second = h.state().session.document_id();
+        assert_ne!(first, second);
+        assert!(!h.state().ui.backstage);
+        h.state_mut().run("text.insert", json!({"text": "Second draft"})).unwrap();
+        h.run_steps(3);
+        h.get_by_label("● Document1").click();
+        h.run_steps(3);
+        assert_eq!(h.state().session.document_id(), first);
+        assert_eq!(text(h.state()), "First draft");
+        h.get_by_label("File").click();
+        h.run_steps(3);
+        h.get_by_label("Options").click();
+        h.run_steps(3);
+        assert_eq!(h.state().ui.backstage_page, "options");
+        h.key_press(egui::Key::Escape);
+        h.run_steps(3);
+        h.get_by_label("● Document2").click();
+        h.run_steps(3);
+        assert_eq!(h.state().session.document_id(), second);
+        assert_eq!(text(h.state()), "Second draft");
+        assert_eq!(h.state().window_count(), 1);
     }
 
     /// Mod+N with text typed opens a second document beside the first; Switch Windows lists both
