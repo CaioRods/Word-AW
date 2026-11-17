@@ -258,26 +258,21 @@ pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
         return;
     }
     let docs = app.session.documents();
-    if docs.len() < 2 {
-        return;
+    let entries: Vec<_> = docs.iter().map(|d| (d.id, format!("{}{}", if d.dirty { "● " } else { "" }, display_title(d)), d.active)).collect();
+    let action = crate::document_strip::show(ui, &entries, crate::theme::Tokens::get(ui.ctx()).accent, crate::i18n::current().code() == "pt-br");
+    match action {
+        Some(crate::document_strip::Action::Select(id)) => {
+            let _ = app.run("view.switchWindows", json!({"id": id}));
+        }
+        // The interactive close path asks about unsaved edits.
+        Some(crate::document_strip::Action::Close(id)) if app.run("view.switchWindows", json!({"id": id})).is_ok() => {
+            let _ = app.run("file.close", json!({}));
+        }
+        Some(crate::document_strip::Action::New) => {
+            let _ = app.run("file.new", json!({}));
+        }
+        _ => {}
     }
-
-    let t = crate::theme::Tokens::get(ui.ctx());
-    egui::Panel::top("document_tabs").frame(egui::Frame::NONE.fill(t.canvas).inner_margin(egui::Margin::symmetric(8, 4))).show(ui, |ui| {
-        egui::ScrollArea::horizontal().id_salt("document_tab_scroll").auto_shrink([false, true]).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                for doc in docs {
-                    let label = format!("{}{}", if doc.dirty { "● " } else { "" }, display_title(&doc));
-                    let response = ui.push_id(doc.id, |ui| {
-                        ui.add(egui::Button::selectable(doc.active, &label).min_size(egui::vec2(70.0, 25.0))).on_hover_text(&label)
-                    }).inner;
-                    if !doc.active && response.clicked() {
-                        let _ = app.run("view.switchWindows", json!({"id": doc.id}));
-                    }
-                }
-            });
-        });
-    });
 }
 
 /// View › Window › Switch Windows: the open windows (in one window, the open documents) in the

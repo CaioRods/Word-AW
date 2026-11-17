@@ -89,11 +89,11 @@ impl WordApp {
                 if moved(self) {
                     return;
                 }
+                crate::documents::document_tabs(ui, self);
                 ribbon::show(self, ui);
                 if moved(self) {
                     return;
                 }
-                crate::documents::document_tabs(ui, self);
                 crate::language_packs::bar(self, ui);
                 chrome::status_bar(self, ui);
                 panes::show(self, ui);

@@ -254,6 +254,13 @@ impl WordApp {
             self.session.set_editing_language(editing.as_deref());
             self.applied_editing = Some((lang, editing));
         }
+        if self.ui.profile.sync() {
+            self.session.author.clone_from(&self.ui.profile.name);
+        } else if self.session.author != self.ui.profile.name {
+            // A name edited in Options participates in the same shared profile.
+            self.ui.profile.name = self.session.author.chars().take(100).collect();
+        }
+        ctx.request_repaint_after(std::time::Duration::from_secs(1));
         options::sync(self);
         self.settle_async_saves();
         // Chinese text wants the Chinese face before the Japanese one (one glyph style per line).

@@ -62,7 +62,7 @@ pub mod paste_picture;
 pub mod previews;
 pub mod print_page;
 pub mod printing;
-mod profile;
+pub use aw_workspace::profile;
 pub mod proofing_pane;
 pub mod read_aloud;
 pub mod ribbon;
@@ -108,6 +108,7 @@ pub use file_dialogs::{FileDialogAnswer, FileDialogRequest, open_filters};
 
 mod app;
 mod clock;
+use aw_workspace::document_strip;
 mod services;
 mod state;
 

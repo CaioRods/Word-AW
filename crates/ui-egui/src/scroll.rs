@@ -6,7 +6,7 @@
 //! - touchpad (pixel) deltas move the page 1:1, with no animation;
 //! - after a touchpad flick the page coasts and slows down ([`Momentum`]), on platforms whose
 //!   system doesn't already send momentum events (not macOS, Windows or the web);
-//! - a mouse-wheel notch scrolls about three text lines and eases in over ~0.1 s, like egui.
+//! - a mouse-wheel notch scrolls about three text lines and eases in over ~0.05 s, like egui.
 //!
 //! With animation effects off ([`crate::theme::Animations`]) nothing eases: a notch scrolls the
 //! page its whole distance at once, and so do egui's own scroll areas ([`unsmoothed_scroll`]).
@@ -233,10 +233,10 @@ impl CanvasScroll {
         if SYNTH_MOMENTUM && !fed {
             now += self.momentum.tick(dt);
         }
-        // Ease wheel notches in: 90% of the way in 0.1 s (egui's curve). Without animation effects
+        // Ease wheel notches in: 90% of the way in 0.05 s, so the wheel stays close to the hand. Without animation effects
         // the whole distance lands this frame.
         if self.pending != Vec2::ZERO {
-            let t = if animate && dt.is_finite() { egui::emath::exponential_smooth_factor(0.9, 0.1, dt.clamp(0.0, MAX_DT)) } else { 1.0 };
+            let t = if animate && dt.is_finite() { egui::emath::exponential_smooth_factor(0.9, 0.05, dt.clamp(0.0, MAX_DT)) } else { 1.0 };
             let ease = |pending: f32| if pending.abs() < 1.0 { pending } else { pending * t };
             let step = Vec2::new(ease(self.pending.x), ease(self.pending.y));
             now += step;
@@ -486,6 +486,23 @@ mod tests {
                 assert_eq!(canvas_frame(&ctx, &mut scroll, next(), Vec::new()), Vec2::ZERO, "no leftover scroll ({modifiers:?})");
             }
         }
+    }
+
+    #[test]
+    fn wheel_responds_within_three_frames_and_keeps_total_distance() {
+        let ctx = egui::Context::default();
+        let mut scroll = CanvasScroll::default();
+        canvas_frame(&ctx, &mut scroll, f64::from(FRAME), vec![Event::PointerMoved(egui::pos2(50.0, 50.0))]);
+        let mut total =
+            canvas_frame(&ctx, &mut scroll, f64::from(2.0 * FRAME), vec![wheel(MouseWheelUnit::Line, Vec2::new(0.0, -1.0), Modifiers::NONE)]).y;
+        for frame in 3..=4 {
+            total += canvas_frame(&ctx, &mut scroll, f64::from(frame as f32 * FRAME), Vec::new()).y;
+        }
+        assert!(total.abs() >= NOTCH_PX * 0.85, "wheel must follow the hand promptly: {total}");
+        for frame in 5..=40 {
+            total += canvas_frame(&ctx, &mut scroll, f64::from(frame as f32 * FRAME), Vec::new()).y;
+        }
+        assert!((total + NOTCH_PX).abs() < 0.1, "the faster response must not change scroll distance: {total}");
     }
 
     /// egui's own scroll areas ease a wheel notch in over several frames; with animation effects

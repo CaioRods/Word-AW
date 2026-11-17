@@ -23,9 +23,10 @@ impl OpenRequests {
         match lock.try_lock() {
             Ok(()) => Ok(Some(Self { folder, _lock: lock })),
             Err(TryLockError::WouldBlock) => {
-                let absolute = paths.iter().map(|path| {
-                    std::path::absolute(path).map(|path| path.as_os_str().encode_wide().collect::<Vec<_>>())
-                }).collect::<io::Result<Vec<_>>>()?;
+                let absolute = paths
+                    .iter()
+                    .map(|path| std::path::absolute(path).map(|path| path.as_os_str().encode_wide().collect::<Vec<_>>()))
+                    .collect::<io::Result<Vec<_>>>()?;
                 let data = serde_json::to_vec(&absolute)?;
                 if data.len() as u64 > MAX_REQUEST {
                     return Err(io::Error::other("file-open request is too large"));

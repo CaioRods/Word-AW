@@ -4,7 +4,7 @@ use egui::{Align2, Rect, Sense, Stroke, Ui, pos2, vec2};
 use serde_json::json;
 use wordcraft_doc::{PartKind, StoryRef};
 
-use crate::theme::{Tokens, TypeRung, fit_text, medium, paint_text, regular, semibold, text_width};
+use crate::theme::{Tokens, TypeRung, fit_text, paint_text, regular, semibold, text_width};
 use crate::{StatusCount, StatusCounts, WordApp, icons};
 
 /// Why the caret's language isn't spell-checked (dictionary unreadable or missing), if it isn't.
@@ -398,9 +398,11 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
                         ui.painter().circle_filled(r.center(), control_h / 2.0 - 1.0, t.accent);
                         resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Account")));
                         let initials: String = app.session.user_initials().chars().take(2).collect();
-                        ui.painter().text(r.center(), Align2::CENTER_CENTER, initials, semibold(10.5), t.on_accent);
-                        if resp.on_hover_text(format!("{} — set your name in File › Options", app.session.author)).clicked() {
-                            let _ = app.run("ui.backstage", json!({"value": true, "page": "options", "pane": "general"}));
+                        if !app.ui.profile.avatar(ui, r) {
+                            ui.painter().text(r.center(), Align2::CENTER_CENTER, initials, semibold(10.5), t.on_accent);
+                        }
+                        if resp.on_hover_text(format!("{} — {}", app.session.author, tl!("Account"))).clicked() {
+                            let _ = app.run("ui.backstage", json!({"value": true, "page": "account"}));
                         }
                         ui.add_space(8.0);
                         search_box(app, ui, control_h);
@@ -430,14 +432,14 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
             let track = TypeRung::Chrome.tracking();
             let cx = full.center().x;
             let available = 2.0 * (cx - qat_end - 10.0).min(right_start - 10.0 - cx);
-            let mut shown: String = title.chars().take(240).collect();
-            if text_width(ui.painter(), &shown, &font, track, t.text) > available {
-                while !shown.is_empty() && text_width(ui.painter(), &format!("{shown}…"), &font, track, t.text) > available {
-                    shown.pop();
-                }
-                shown.push('…');
+            // One cached text layout replaces the old per-character re-layout on every pointer frame.
+            let mut job = egui::text::LayoutJob::simple_singleline(title.chars().take(240).collect(), font.clone(), t.text);
+            if let Some(section) = job.sections.first_mut() {
+                section.format.extra_letter_spacing = track;
             }
-            let w = text_width(ui.painter(), &shown, &font, track, t.text);
+            job.wrap = egui::text::TextWrapping::truncate_at_width(available.max(0.0));
+            let galley = ui.painter().layout_job(job);
+            let w = galley.size().x;
             if available > 24.0 {
                 let rect = Rect::from_center_size(pos2(cx, full.center().y), vec2(w + 8.0, control_h));
                 let response = ui.interact(rect, ui.scope_id().with("document_name"), Sense::click()).on_hover_text(tl!("Rename Document"));
@@ -446,15 +448,7 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
                     let _ = app.run("file.rename", json!({}));
                 }
 
-                paint_text(
-                    ui.painter(),
-                    pos2(cx - w / 2.0, full.center().y - TypeRung::Chrome.line_height() / 2.0),
-                    Align2::LEFT_TOP,
-                    &shown,
-                    &font,
-                    track,
-                    t.text,
-                );
+                ui.painter().galley(pos2(cx - w / 2.0, full.center().y - galley.size().y / 2.0), galley, t.text);
             }
         });
 }

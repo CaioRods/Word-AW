@@ -21,9 +21,9 @@ mod file_dialogs;
 #[cfg(any(target_os = "windows", target_os = "macos", test))]
 mod graphics;
 mod logging;
-mod print;
 #[cfg(windows)]
 mod open_requests;
+mod print;
 mod region;
 #[cfg(target_os = "macos")]
 mod traffic_lights;
@@ -358,6 +358,7 @@ fn try_save_prefs(app: &WordApp) -> Result<bool, String> {
     if !prefs_enabled() {
         return Ok(false);
     }
+    app.ui.profile.flush_shared()?;
     let Some(p) = prefs_path() else { return Ok(false) };
     if let Some(dir) = p.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
@@ -406,11 +407,18 @@ fn services(file_dialog: file_dialogs::Hook, ctx: &egui::Context) -> Services {
 
 /// Window, Dock and taskbar icon.
 fn app_icon() -> Option<egui::IconData> {
-    #[cfg(target_os = "macos")]
-    let png: &[u8] = include_bytes!("../../../assets/app-icon/wordcraft-macos-512.png");
-    #[cfg(not(target_os = "macos"))]
-    let png: &[u8] = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/ai.storyteller.wordcraft.png");
-    eframe::icon_data::from_png_bytes(png).map_err(|e| log::warn!("app icon: {e}")).ok()
+    // Original AW artwork generated in code; also used by every native document window.
+    let glyph: [u8; 7] = [17, 17, 17, 21, 21, 21, 10];
+    let mut rgba = Vec::with_capacity(64 * 64 * 4);
+    for y in 0..64usize {
+        for x in 0..64usize {
+            let on =
+                (17..47).contains(&x) && (11..53).contains(&y) && glyph.get((y - 11) / 6).is_some_and(|row| row & (1 << (4 - (x - 17) / 6)) != 0);
+            let color = if on { [255, 218, 122, 255] } else { [151, 29, 39, 255] };
+            rgba.extend_from_slice(&color);
+        }
+    }
+    Some(egui::IconData { rgba, width: 64, height: 64 })
 }
 
 const USAGE: &str = "\
@@ -647,6 +655,9 @@ fn main() -> eframe::Result {
             let mut app = WordApp::new(session, services(file_dialog, &cc.egui_ctx));
             app.set_startup_update_check(true);
             load_prefs(&mut app);
+            if prefs_enabled() {
+                app.ui.profile.enable_sharing();
+            }
             // After the preferences, so the reason it gives is in the interface language.
             if updates_unsafe {
                 app.disable_self_update();
@@ -709,8 +720,8 @@ fn main() -> eframe::Result {
                 RawWindowState::default(),
                 #[cfg(target_os = "macos")]
                 apple_events.connect(&cc.egui_ctx),
-                    #[cfg(windows)]
-                    requests,
+                #[cfg(windows)]
+                requests,
             )))
         }),
     )

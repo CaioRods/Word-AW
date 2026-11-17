@@ -126,8 +126,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             gradient(ui, clip, t.nav, t.nav_end);
             if nav_progress < 1.0 {
                 let x = crate::rtl::lead_x(rtl, clip, clip.width() * nav_progress);
-                let reveal = if rtl { Rect::from_min_max(clip.min, pos2(x, clip.bottom())) }
-                    else { Rect::from_min_max(pos2(x, clip.top()), clip.max) };
+                let reveal =
+                    if rtl { Rect::from_min_max(clip.min, pos2(x, clip.bottom())) } else { Rect::from_min_max(pos2(x, clip.top()), clip.max) };
                 ui.painter().rect_filled(reveal, 0.0, t.ribbon.gamma_multiply(0.24 * (1.0 - nav_progress)));
             }
             ui.scope(|ui| {
