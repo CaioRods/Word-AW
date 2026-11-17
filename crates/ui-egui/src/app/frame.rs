@@ -67,6 +67,9 @@ impl WordApp {
     pub(super) fn paint_window(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, t: theme::Tokens) {
         let window = self.windows.shown();
         let moved = |app: &WordApp| app.windows.shown() != window;
+        if !self.ui.backstage {
+            backstage::reset_animation(ctx);
+        }
         if self.ui.backstage {
             backstage::show(self, ui);
         } else if !self.has_document() {

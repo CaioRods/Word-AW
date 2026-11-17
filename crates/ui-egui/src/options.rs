@@ -137,8 +137,7 @@ fn pane_label(id: &str) -> &'static str {
 /// The Options page.
 pub fn page(app: &mut WordApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
-    ui.label(RichText::new(tl!("Options")).font(semibold(26.0)));
-    ui.add_space(16.0);
+    crate::backstage::heading(ui, "Options");
     let current = if PANES.contains(&app.ui.options_pane.as_str()) { app.ui.options_pane.clone() } else { "general".to_string() };
     let rtl = crate::rtl::on();
     let body = |ui: &mut Ui| {
@@ -172,19 +171,26 @@ pub fn page(app: &mut WordApp, ui: &mut Ui) {
         let (line, _) = ui.allocate_exact_size(vec2(1.0, 420.0), egui::Sense::hover());
         ui.painter().rect_filled(line, 0.0, t.border);
         ui.add_space(20.0);
-        crate::rtl::vertical(ui, |ui| {
-            ui.set_max_width(640.0);
-            match current.as_str() {
-                "display" => display(app, ui),
-                "proofing" => proofing(app, ui),
-                "save" => save(app, ui),
-                "language" => language(app, ui),
-                "accessibility" => accessibility(app, ui),
-                "advanced" => advanced(app, ui),
-                "agents" => agents(ui),
-                _ => general(app, ui),
-            }
-        });
+        egui::Frame::new()
+            .fill(t.menu)
+            .stroke(egui::Stroke::new(1.0, t.border))
+            .corner_radius(13)
+            .inner_margin(egui::Margin::symmetric(16, 12))
+            .show(ui, |ui| {
+                crate::rtl::vertical(ui, |ui| {
+                    ui.set_max_width(640.0);
+                    match current.as_str() {
+                        "display" => display(app, ui),
+                        "proofing" => proofing(app, ui),
+                        "save" => save(app, ui),
+                        "language" => language(app, ui),
+                        "accessibility" => accessibility(app, ui),
+                        "advanced" => advanced(app, ui),
+                        "agents" => agents(ui),
+                        _ => general(app, ui),
+                    }
+                })
+            });
     };
     // Right to left the pane list is on the right and the settings fill in from it.
     if rtl {

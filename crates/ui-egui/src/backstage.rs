@@ -7,7 +7,7 @@ use crate::theme::{Tokens, medium, regular, semibold};
 use crate::{WordApp, icons};
 
 /// The side menu: page id, label and icon (#1714).
-const PAGES: [(&str, &str, &str); 11] = [
+const PAGES: [(&str, &str, &str); 12] = [
     ("home", "Home", "homeFolder"),
     ("new", "New", "blankPage"),
     ("open", "Open", "open"),
@@ -19,6 +19,7 @@ const PAGES: [(&str, &str, &str); 11] = [
     ("export", "Export", "export"),
     ("close", "Close", "close"),
     ("options", "Options", "options"),
+    ("account", "Account", "info"),
 ];
 
 /// The Backstage pages' keytips, as Word's (#4960): Alt, F, then a letter. V is Word's older
@@ -66,6 +67,50 @@ fn bottom_links(app: &WordApp) -> Vec<(&'static str, &'static str)> {
     links
 }
 
+fn animation_id() -> egui::Id {
+    egui::Id::unique("word-aw-backstage-motion")
+}
+
+pub(crate) fn reset_animation(ctx: &egui::Context) {
+    ctx.data_mut(|data| data.remove::<(f64, String, f64)>(animation_id()));
+}
+
+fn motion(ui: &Ui, page: &str) -> (f32, f32) {
+    if ui.style().animation_time <= 0.0 {
+        return (1.0, 1.0);
+    }
+    let now = ui.input(|i| i.time);
+    let (opened, _, changed) = ui.ctx().data_mut(|data| {
+        let state = data.get_temp_mut_or_insert_with(animation_id(), || (now, page.to_owned(), now));
+        if state.1 != page {
+            state.1 = page.to_owned();
+            state.2 = now;
+        }
+        state.clone()
+    });
+    let ease = |start, duration| {
+        let progress: f64 = ((now - start) / duration).clamp(0.0, 1.0);
+        (1.0 - (1.0 - progress).powi(2)) as f32
+    };
+    let nav = ease(opened, 0.46);
+    let page = ease(changed, 0.36);
+    if nav < 1.0 || page < 1.0 {
+        ui.ctx().request_repaint();
+    }
+    (nav, page)
+}
+
+fn gradient(ui: &Ui, rect: Rect, top: egui::Color32, bottom: egui::Color32) {
+    let mut mesh = egui::Mesh::default();
+    mesh.colored_vertex(rect.left_top(), top);
+    mesh.colored_vertex(rect.right_top(), top);
+    mesh.colored_vertex(rect.right_bottom(), bottom);
+    mesh.colored_vertex(rect.left_bottom(), bottom);
+    mesh.add_triangle(0, 1, 2);
+    mesh.add_triangle(0, 2, 3);
+    ui.painter().add(egui::Shape::mesh(mesh));
+}
+
 /// Draws the Backstage side menu and the active page. Without a document only the Home, New, Open
 /// and Options pages work, and it handles Back, Escape, Save, Save As and Close routing.
 pub fn show(app: &mut WordApp, ui: &mut Ui) {
@@ -75,119 +120,137 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     if !has_document && !works_without_document(&app.ui.backstage_page) {
         app.ui.backstage_page = "home".into();
     }
+    let (nav_progress, page_progress) = motion(ui, &app.ui.backstage_page);
     let mac = app.integrated_titlebar;
     crate::rtl::start_panel("backstage_nav")
         .exact_size(200.0)
         // Fixed width, as in Word: without this egui shows a resize handle that does nothing (#502).
         .resizable(false)
-        .frame(egui::Frame::NONE.fill(t.nav).inner_margin(egui::Margin { left: 0, right: 0, top: if mac { 0 } else { 12 }, bottom: 12 }))
+        .frame(egui::Frame::NONE.fill(t.ribbon).inner_margin(egui::Margin { left: 0, right: 0, top: if mac { 0 } else { 12 }, bottom: 12 }))
         .show(ui, |ui| {
             // Right to left the navigation is on the right, away from the macOS traffic lights.
             let rtl = crate::rtl::on();
-            let back = if mac {
-                // macOS (#222): the Backstage covers the title bar, so its top band is the title
-                // bar: the back button sits beside the traffic lights, centred with them and as far
-                // from them as the title bar's own controls, and the rest of the band drags the window.
-                let (band, drag) = ui.allocate_exact_size(vec2(200.0, app.mac_titlebar.height), Sense::click_and_drag());
-                if drag.drag_started() {
-                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
-                }
-                crate::chrome::note_title_drag(ui.ctx(), band);
-                // The chevron's stroke starts at the content edge.
-                let c = if rtl {
-                    pos2(band.max.x - 26.0, band.center().y)
-                } else {
-                    back_chevron_c(band.min.x, band.center().y, app.session.view.full_screen, app.mac_titlebar.content_left)
-                };
-                let resp = ui.interact(Rect::from_center_size(c, vec2(22.0, band.height())), ui.scope_id().with("backstage_back"), Sense::click());
-                icons::paint(
-                    ui.painter(),
-                    Rect::from_center_size(c, vec2(18.0, 18.0)),
-                    if rtl { "chevronRight" } else { "chevronLeft" },
-                    egui::Color32::WHITE,
-                    egui::Color32::WHITE,
-                );
-                resp
-            } else {
-                // The hit area is scoped to the chevron, not the whole 200px-wide row (#3041):
-                // the row reads as plain sidebar background next to it, so clicking there must
-                // not also close the File page, same as the macOS chevron fix (#2972) below.
-                let (r, _) = ui.allocate_exact_size(vec2(200.0, 40.0), Sense::hover());
-                let c = pos2(crate::rtl::lead_x(rtl, r, 26.0), r.center().y);
-                let resp = ui.interact(Rect::from_center_size(c, vec2(22.0, r.height())), ui.scope_id().with("backstage_back"), Sense::click());
-                icons::paint(
-                    ui.painter(),
-                    Rect::from_center_size(c, vec2(18.0, 18.0)),
-                    if rtl { "chevronRight" } else { "chevronLeft" },
-                    egui::Color32::WHITE,
-                    egui::Color32::WHITE,
-                );
-                resp
-            };
-            // Escape in the built-in file browser closes only the browser.
-            if back.clicked() || (!app.file_dialog_open() && ui.input(|i| i.key_pressed(egui::Key::Escape))) {
-                app.ui.backstage = false;
-                app.canvas.want_focus = true;
-            }
-            ui.add_space(if mac { 12.0 } else { 6.0 });
-            for (id, label, icon) in PAGES {
-                // No document open (#1129): Info, Save, Save As, Print and Export are greyed out.
-                let on = has_document || works_without_document(id);
-                let (r, resp) = ui.add_enabled_ui(on, |ui| ui.allocate_exact_size(vec2(200.0, 38.0), Sense::click())).inner;
-                resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, on, tl!(label)));
-                let active = app.ui.backstage_page == id;
-                if active {
-                    ui.painter().rect_filled(r, 0.0, egui::Color32::from_white_alpha(46));
-                } else if on && resp.hovered() {
-                    ui.painter().rect_filled(r, 0.0, egui::Color32::from_white_alpha(26));
-                }
-                let ink = if on { egui::Color32::WHITE } else { egui::Color32::from_white_alpha(110) };
-                icons::paint(
-                    ui.painter(),
-                    Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 31.0), r.center().y), vec2(18.0, 18.0)),
-                    icon,
-                    ink,
-                    ink,
-                );
-                ui.painter().text(
-                    pos2(crate::rtl::lead_x(rtl, r, 52.0), r.center().y),
-                    crate::rtl::lead_center(rtl),
-                    tl!(label),
-                    if active { semibold(14.0) } else { medium(14.0) },
-                    ink,
-                );
-                if on
-                    && app.ui.keytips == crate::keytips::Phase::Backstage
-                    && let Some(letter) = keytip_letter(id)
-                {
-                    crate::keytips::badge(ui, Rect::from_min_size(pos2(r.min.x + 16.0, r.min.y), vec2(20.0, 16.0)), letter);
-                }
-                if resp.clicked() {
-                    go_to_page(app, id);
-                }
-            }
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                for (label, id) in bottom_links(app) {
-                    let (r, resp) = ui.allocate_exact_size(vec2(200.0, 32.0), Sense::click());
-                    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), tl!(label)));
-                    if resp.hovered() {
-                        ui.painter().rect_filled(r, 0.0, egui::Color32::from_white_alpha(26));
+            let direction = if rtl { 1.0 } else { -1.0 };
+            let offset = vec2(direction * 96.0 * (1.0 - nav_progress), 0.0);
+            let clip = ui.clip_rect();
+            gradient(
+                ui,
+                clip.translate(offset),
+                t.nav,
+                if t.dark { egui::Color32::from_rgb(46, 33, 34) } else { egui::Color32::from_rgb(109, 42, 42) },
+            );
+            let content = ui.max_rect().translate(offset);
+            ui.scope_builder(egui::UiBuilder::new().max_rect(content), |ui| {
+                ui.set_clip_rect(clip.intersect(clip.translate(offset)));
+                let back = if mac {
+                    // macOS (#222): the Backstage covers the title bar, so its top band is the title
+                    // bar: the back button sits beside the traffic lights, centred with them and as far
+                    // from them as the title bar's own controls, and the rest of the band drags the window.
+                    let (band, drag) = ui.allocate_exact_size(vec2(200.0, app.mac_titlebar.height), Sense::click_and_drag());
+                    if drag.drag_started() {
+                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
                     }
-                    let at = pos2(crate::rtl::lead_x(rtl, r, 22.0), r.center().y);
-                    ui.painter().text(at, crate::rtl::lead_center(rtl), tl!(label), regular(13.0), egui::Color32::WHITE);
+                    crate::chrome::note_title_drag(ui.ctx(), band);
+                    // The chevron's stroke starts at the content edge.
+                    let c = if rtl {
+                        pos2(band.max.x - 26.0, band.center().y)
+                    } else {
+                        back_chevron_c(band.min.x, band.center().y, app.session.view.full_screen, app.mac_titlebar.content_left)
+                    };
+                    let resp =
+                        ui.interact(Rect::from_center_size(c, vec2(22.0, band.height())), ui.scope_id().with("backstage_back"), Sense::click());
+                    icons::paint(
+                        ui.painter(),
+                        Rect::from_center_size(c, vec2(18.0, 18.0)),
+                        if rtl { "chevronRight" } else { "chevronLeft" },
+                        egui::Color32::WHITE,
+                        egui::Color32::WHITE,
+                    );
+                    resp
+                } else {
+                    // The hit area is scoped to the chevron, not the whole 200px-wide row (#3041):
+                    // the row reads as plain sidebar background next to it, so clicking there must
+                    // not also close the File page, same as the macOS chevron fix (#2972) below.
+                    let (r, _) = ui.allocate_exact_size(vec2(200.0, 40.0), Sense::hover());
+                    let c = pos2(crate::rtl::lead_x(rtl, r, 26.0), r.center().y);
+                    let resp = ui.interact(Rect::from_center_size(c, vec2(22.0, r.height())), ui.scope_id().with("backstage_back"), Sense::click());
+                    icons::paint(
+                        ui.painter(),
+                        Rect::from_center_size(c, vec2(18.0, 18.0)),
+                        if rtl { "chevronRight" } else { "chevronLeft" },
+                        egui::Color32::WHITE,
+                        egui::Color32::WHITE,
+                    );
+                    resp
+                };
+                // Escape in the built-in file browser closes only the browser.
+                if back.clicked() || (!app.file_dialog_open() && ui.input(|i| i.key_pressed(egui::Key::Escape))) {
+                    app.ui.backstage = false;
+                    app.canvas.want_focus = true;
+                }
+                ui.add_space(if mac { 12.0 } else { 6.0 });
+                for (id, label, icon) in PAGES {
+                    // No document open (#1129): Info, Save, Save As, Print and Export are greyed out.
+                    let on = has_document || works_without_document(id);
+                    let (r, resp) = ui.add_enabled_ui(on, |ui| ui.allocate_exact_size(vec2(200.0, 38.0), Sense::click())).inner;
+                    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, on, tl!(label)));
+                    let active = app.ui.backstage_page == id;
+                    if active {
+                        ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_black_alpha(55));
+                        let marker = Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 14.0), r.center().y), vec2(3.0, 15.0));
+                        ui.painter().rect_filled(marker, 2, egui::Color32::from_rgb(238, 198, 101));
+                    } else if on && resp.hovered() {
+                        ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(26));
+                    }
+                    let ink = if on { egui::Color32::WHITE } else { egui::Color32::from_white_alpha(110) };
+                    icons::paint(
+                        ui.painter(),
+                        Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 31.0), r.center().y), vec2(18.0, 18.0)),
+                        icon,
+                        ink,
+                        ink,
+                    );
+                    ui.painter().text(
+                        pos2(crate::rtl::lead_x(rtl, r, 52.0), r.center().y),
+                        crate::rtl::lead_center(rtl),
+                        tl!(label),
+                        if active { semibold(14.0) } else { medium(14.0) },
+                        ink,
+                    );
+                    if on
+                        && app.ui.keytips == crate::keytips::Phase::Backstage
+                        && let Some(letter) = keytip_letter(id)
+                    {
+                        crate::keytips::badge(ui, Rect::from_min_size(pos2(r.min.x + 16.0, r.min.y), vec2(20.0, 16.0)), letter);
+                    }
                     if resp.clicked() {
-                        if id == "discord" {
-                            let _ = app.run("ui.discord", json!({}));
-                        } else {
-                            app.dialog = crate::dialogs::Dialog::open("about", app);
+                        go_to_page(app, id);
+                    }
+                }
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                    for (label, id) in bottom_links(app) {
+                        let (r, resp) = ui.allocate_exact_size(vec2(200.0, 32.0), Sense::click());
+                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), tl!(label)));
+                        if resp.hovered() {
+                            ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(26));
+                        }
+                        let at = pos2(crate::rtl::lead_x(rtl, r, 22.0), r.center().y);
+                        ui.painter().text(at, crate::rtl::lead_center(rtl), tl!(label), regular(13.0), egui::Color32::WHITE);
+                        if resp.clicked() {
+                            if id == "discord" {
+                                let _ = app.run("ui.discord", json!({}));
+                            } else {
+                                app.dialog = crate::dialogs::Dialog::open("about", app);
+                            }
                         }
                     }
-                }
+                });
             });
         });
     egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.ribbon).inner_margin(egui::Margin::symmetric(0, 30))).show(ui, |ui| {
         // The side padding sits inside the pages, so the scroll area reaches the window's edge.
-        let pad = egui::Frame::NONE.inner_margin(egui::Margin::symmetric(40, 0));
+        let travel = 1.0 - page_progress;
+        let pad = egui::Frame::NONE.inner_margin(egui::Margin::symmetric(32 + (24.0 * travel).round() as i8, (12.0 * travel).round() as i8));
         // The Print page fills the pane and scrolls its settings and its preview itself (#1156).
         if app.ui.backstage_page == "print" {
             pad.show(ui, |ui| crate::rtl::root(ui, |ui| export_page(app, ui)));
@@ -196,6 +259,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         // Full width, so the bar sits at the window's edge and the wheel works over the whole page (#5282).
         egui::ScrollArea::vertical().auto_shrink([false, true]).show(ui, |ui| {
             pad.show(ui, |ui| {
+                ui.multiply_opacity(0.55 + 0.45 * page_progress);
                 crate::rtl::root(ui, |ui| match app.ui.backstage_page.as_str() {
                     "home" => home_page(app, ui),
                     "new" => new_page(app, ui),
@@ -205,11 +269,26 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     "recover" => recovery_page(app, ui),
                     "print" | "export" => export_page(app, ui),
                     "options" => crate::options::page(app, ui),
+                    "account" => account(app, ui),
                     _ => home_page(app, ui),
                 })
             })
         });
     });
+}
+
+fn account(app: &mut WordApp, ui: &mut Ui) {
+    let pt = crate::i18n::current().code() == "pt-br";
+    let mut name = app.session.author.clone();
+    let can_edit_name = !wordcraft_engine::cmd::protect::enforced(&app.session.doc);
+    let slot = crate::profile::card(ui, &mut app.ui.profile, &mut name, pt, app.services.file_dialog.is_some(), can_edit_name);
+    if can_edit_name {
+        app.session.author = name;
+    }
+    if let Some(slot) = slot {
+        use crate::file_dialogs::{AfterPick, FileDialogRequest};
+        let _ = app.ask_file(FileDialogRequest::Open { purpose: "profile-picture".into() }, AfterPick::ProfileImage(slot));
+    }
 }
 
 /// Recovery is a separate copy. Leaving this page never discards it.
@@ -301,12 +380,16 @@ pub(crate) fn go_to_page(app: &mut WordApp, id: &str) {
 
 /// The Backstage pages that work while no document is open (#1129).
 fn works_without_document(page: &str) -> bool {
-    matches!(page, "home" | "new" | "open" | "options")
+    matches!(page, "home" | "new" | "open" | "options" | "account")
 }
 
-fn heading(ui: &mut Ui, s: &str) {
-    ui.label(egui::RichText::new(tl!(s)).font(semibold(26.0)));
-    ui.add_space(16.0);
+pub(crate) fn heading(ui: &mut Ui, s: &str) {
+    ui.label(egui::RichText::new(tl!(s)).font(semibold(28.0)));
+    let (rule, _) = ui.allocate_exact_size(vec2(48.0, 3.0), Sense::hover());
+    let tokens = Tokens::get(ui.ctx());
+    ui.painter().rect_filled(rule, 1, tokens.accent);
+    ui.painter().rect_filled(Rect::from_min_max(pos2(rule.center().x, rule.top()), rule.max), 1, egui::Color32::from_rgb(238, 198, 101));
+    ui.add_space(14.0);
 }
 
 /// Draws a template thumbnail and caption as one accessible button, lazily renders and caches a

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use egui::{Align2, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Rect, Stroke, Visuals};
 
 /// WordCraft's app colour (and its darker ink for text on light backgrounds).
-pub const APP_COLOR: Color32 = Color32::from_rgb(0x3B, 0x5B, 0xDB);
+pub const APP_COLOR: Color32 = Color32::from_rgb(0xA1, 0x3D, 0x3A);
 pub const APP_INK: Color32 = Color32::from_rgb(0x2B, 0x47, 0xB5);
 
 /// The interface theme setting (File › Options › General, View › Interface Theme): a fixed light or
@@ -329,7 +329,7 @@ impl Tokens {
             ruler_margin: Color32::from_rgb(0xD4, 0xD4, 0xD4),
             ruler_tick: Color32::from_rgb(0x70, 0x70, 0x70),
             status_bar: Color32::from_rgb(0xF0, 0xF0, 0xF0),
-            selection: Color32::from_rgba_unmultiplied(0x3B, 0x5B, 0xDB, 0x48),
+            selection: Color32::from_rgba_unmultiplied(0xA1, 0x3D, 0x3A, 0x48),
             find_highlight: Color32::from_rgba_unmultiplied(0xFF, 0xE0, 0x3D, 0x90),
             page_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x22),
             handle: Color32::WHITE,
@@ -383,11 +383,11 @@ impl Tokens {
             hover: Color32::from_rgb(0x3D, 0x3D, 0x3D),
             pressed: Color32::from_rgb(0x4A, 0x4A, 0x4A),
             checked: Color32::from_rgb(0x2E, 0x3A, 0x66),
-            accent: Color32::from_rgb(0x7A, 0x93, 0xF0),
-            nav: Color32::from_rgb(0x27, 0x31, 0x5C),
+            accent: Color32::from_rgb(0xF0, 0xA5, 0x9C),
+            nav: Color32::from_rgb(0x62, 0x35, 0x31),
             accent_text: Color32::from_rgb(0x9C, 0xB0, 0xF5),
             // Dark text on the light dark-theme accent: white on #7a93f0 is only 2.9:1 (#655).
-            on_accent: Color32::from_rgb(0x11, 0x16, 0x2E),
+            on_accent: Color32::from_rgb(0x36, 0x23, 0x23),
             input: Color32::from_rgb(0x1E, 0x1E, 0x1E),
             input_border: Color32::from_rgb(0x7A, 0x7A, 0x7A),
             group_label: Color32::from_rgb(0xA0, 0xA0, 0xA0),
@@ -396,7 +396,7 @@ impl Tokens {
             ruler_margin: Color32::from_rgb(0x2E, 0x2E, 0x2E),
             ruler_tick: Color32::from_rgb(0xB4, 0xB4, 0xB4),
             status_bar: Color32::from_rgb(0x1F, 0x1F, 0x1F),
-            selection: Color32::from_rgba_unmultiplied(0x7A, 0x93, 0xF0, 0x55),
+            selection: Color32::from_rgba_unmultiplied(0xF0, 0xA5, 0x9C, 0x55),
             find_highlight: Color32::from_rgba_unmultiplied(0xC8, 0xA8, 0x00, 0x70),
             page_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x60),
             handle: Color32::from_rgb(0xF2, 0xF2, 0xF2),
@@ -869,7 +869,7 @@ fn visuals(t: &Tokens) -> Visuals {
     v.extreme_bg_color = t.input;
     v.faint_bg_color = t.panel;
     v.window_stroke = Stroke::new(1.0, t.border_strong);
-    v.window_corner_radius = CornerRadius::same(8);
+    v.window_corner_radius = CornerRadius::same(15);
     v.menu_corner_radius = CornerRadius::same(6);
     v.selection.bg_fill = t.selection;
     v.selection.stroke = Stroke::new(1.0, t.accent);

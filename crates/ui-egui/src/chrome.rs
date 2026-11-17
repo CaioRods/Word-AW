@@ -314,6 +314,19 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
         .frame(egui::Frame::NONE.fill(t.title_bar).inner_margin(egui::Margin { left, right: 10, top: 0, bottom: 0 }))
         .show(ui, |ui| {
             let full = ui.max_rect();
+            let (start, end) = if t.dark {
+                (egui::Color32::from_rgb(61, 43, 41), egui::Color32::from_rgb(49, 44, 36))
+            } else {
+                (egui::Color32::from_rgb(250, 238, 234), egui::Color32::from_rgb(252, 247, 234))
+            };
+            let rect = ui.clip_rect();
+            let mut mesh = egui::Mesh::default();
+            for (point, color) in [(rect.left_top(), start), (rect.right_top(), end), (rect.right_bottom(), end), (rect.left_bottom(), start)] {
+                mesh.colored_vertex(point, color);
+            }
+            mesh.add_triangle(0, 1, 2);
+            mesh.add_triangle(0, 2, 3);
+            ui.painter().add(egui::Shape::mesh(mesh));
             // Drag the window by the title bar (integrated title bar on macOS).
             let drag = ui.interact(full, ui.scope_id().with("title_drag"), Sense::click_and_drag());
             if drag.drag_started() {
@@ -421,7 +434,7 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
             // Centred title.
             let title = if !app.has_document() {
                 // No document open (#1129): the app's name alone.
-                "WordCraft".to_string()
+                "Word AW".to_string()
             } else {
                 format!(
                     "{} — {}",

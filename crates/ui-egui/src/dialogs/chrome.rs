@@ -1,3 +1,35 @@
+/// Translucent acrylic with softly diffused red and amber lighting.
+fn acrylic_surface(rect: egui::Rect, frame: egui::Frame, dark: bool) -> egui::Shape {
+    use egui::epaint::RectShape;
+    use egui::{Color32, Rect, Shape, pos2, vec2};
+
+    let (base, warm, amber) = if dark {
+        (
+            Color32::from_rgba_unmultiplied(40, 37, 39, 221),
+            Color32::from_rgba_unmultiplied(124, 73, 74, 92),
+            Color32::from_rgba_unmultiplied(119, 88, 56, 71),
+        )
+    } else {
+        (
+            Color32::from_rgba_unmultiplied(251, 248, 246, 217),
+            Color32::from_rgba_unmultiplied(231, 162, 157, 89),
+            Color32::from_rgba_unmultiplied(241, 205, 138, 86),
+        )
+    };
+    let blur = (rect.height() * 0.24).clamp(8.0, 48.0);
+    let glow = |x: f32, y: f32, color| {
+        let center = pos2(rect.left() + rect.width() * x, rect.top() + rect.height() * y);
+        let area = Rect::from_center_size(center, rect.size() * vec2(0.48, 0.29));
+        Shape::Rect(RectShape::filled(area, 24, color).with_blur_width(blur))
+    };
+    Shape::Vec(vec![
+        frame.shadow.as_shape(rect, frame.corner_radius).into(),
+        Shape::rect_filled(rect, frame.corner_radius, base),
+        glow(0.32, 0.31, warm),
+        glow(0.68, 0.67, amber),
+    ])
+}
+
 use super::dispatch::body;
 use super::{Dialog, Sense, Tokens, Ui, WordApp, vec2};
 
@@ -219,7 +251,21 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
         Dialog::Layout(d) => d.title(),
     };
     let id = egui::Id::unique(("dialog", title));
-    let window = crate::window_close::window(ctx, egui::Window::new(tl!(title)).id(id).collapsible(false).resizable(false));
+    let style = ctx.style_of(ctx.theme());
+    let frame = egui::Frame::window(&style);
+    let window = egui::Window::new(match title {
+        "About WordCraft" if crate::i18n::current().code() == "pt-br" => "Sobre o Word AW",
+        "About WordCraft" => "About Word AW",
+        "WordCraft" => "Word AW",
+        _ => tl!(title),
+    })
+    .id(id)
+    .collapsible(false)
+    .resizable(false)
+    .frame(frame.fill(egui::Color32::TRANSPARENT).shadow(egui::epaint::Shadow::NONE));
+    let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Middle, id));
+    let surface = painter.add(egui::Shape::Noop);
+    let window = crate::window_close::window(ctx, window);
     // A file browser or Colors dialog it opened is above it and takes the keys: Escape or Enter
     // there doesn't also cancel or OK this one.
     let held = (app.file_browser_open() || app.colors.is_some()).then(|| ctx.input_mut(|i| std::mem::take(&mut i.events)));
@@ -231,6 +277,7 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
         ctx.input_mut(|i| i.events = events);
     }
     if let Some(shown) = &shown {
+        painter.set(surface, acrylic_surface(shown.response.rect, frame, ctx.theme() == egui::Theme::Dark));
         if let Dialog::SaveChanges { name, message, .. } = &d {
             let question = crate::i18n::fmt(tl!("Do you want to save changes to {name}?"), &[("name", name)]);
             let mut description = tl!("Your changes will be lost if you don't save them.").to_string();

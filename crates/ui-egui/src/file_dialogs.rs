@@ -47,6 +47,7 @@ const DOCUMENTS: &[&str] =
 /// The host's system dialog and the built-in browser offer the same.
 pub fn open_filters(purpose: &str) -> &'static [(&'static str, &'static [&'static str])] {
     match purpose {
+        "profile-picture" => &[("PNG / JPEG", &["png", "jpg", "jpeg"])],
         "picture" => &[("Pictures", PICTURES)],
         "font" => &[("Fonts", wordcraft_fonts::FONT_FILE_EXTS)],
         "sources" => &[("Word sources", &["xml"]), ("All files", &["*"])],
@@ -58,15 +59,25 @@ pub fn open_filters(purpose: &str) -> &'static [(&'static str, &'static [&'stati
 /// What to do with the path picked in a dialog.
 pub(crate) enum AfterPick {
     /// Open the picked document from the window showing `document` ([`WordApp::open_file`]).
-    OpenDocument { document: u64 },
+    OpenDocument {
+        document: u64,
+    },
     /// Insert the picked picture, or replace the pending Change Picture target.
     Picture,
+    ProfileImage(crate::profile::Slot),
     /// Save the document there, then carry on.
-    SaveAs { after: AfterSave, document: u64 },
+    SaveAs {
+        after: AfterSave,
+        document: u64,
+    },
     /// Save a copy there in this format (`pdf`, `docx`, `png`…).
-    Export { ext: String },
+    Export {
+        ext: String,
+    },
     /// Write the PDF of these print settings there (File › Print › Save these pages as PDF).
-    PrintPdf { settings: Value },
+    PrintPdf {
+        settings: Value,
+    },
     /// Load the picked CSV/TSV/text file or spreadsheet as the mail-merge recipients (#240, #334).
     Recipients,
     /// Add every picked font file (#582, #1789).
@@ -79,7 +90,9 @@ pub(crate) enum AfterPick {
     /// Organizer (#377).
     ForDialog,
     /// Put the picked document into the Compare dialog (original or revised, #412).
-    ComparePath { revised: bool },
+    ComparePath {
+        revised: bool,
+    },
 }
 
 /// What to do once Save As has written the document.
@@ -248,6 +261,14 @@ impl WordApp {
                 let r = self.open_file(&path, Some(document));
                 self.ui.backstage = false;
                 r
+            }
+            AfterPick::ProfileImage(slot) => {
+                let Some(path) = picked else { return Ok(json!({"cancelled": true})) };
+                if let Err(error) = self.ui.profile.import(slot, &path, crate::i18n::current().code() == "pt-br") {
+                    self.ui.profile.error = Some(error.clone());
+                    return Err(error);
+                }
+                Ok(json!({"imported": true}))
             }
             AfterPick::Picture => {
                 let Some(path) = picked else {

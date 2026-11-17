@@ -62,6 +62,7 @@ pub mod paste_picture;
 pub mod previews;
 pub mod print_page;
 pub mod printing;
+mod profile;
 pub mod proofing_pane;
 pub mod read_aloud;
 pub mod ribbon;
@@ -283,6 +284,7 @@ pub struct UiState {
     pub tab: String,
     pub backstage: bool,
     pub backstage_page: String,
+    pub profile: profile::Profile,
     /// File › Print settings (#641); not saved.
     #[serde(skip)]
     pub print: print_page::PrintSettings,
@@ -457,6 +459,7 @@ impl Default for UiState {
             tab: DEFAULT_TAB.into(),
             backstage: false,
             backstage_page: "home".into(),
+            profile: profile::Profile::default(),
             print: print_page::PrintSettings::default(),
             ribbon_collapsed: false,
             quick_access_toolbar: true,
@@ -483,7 +486,7 @@ impl Default for UiState {
             show_discord: true,
             author: None,
             window: None,
-            language: i18n::AUTO.into(),
+            language: "pt-br".into(),
             editing: wordcraft_engine::Prefs::default(),
             read_aloud_rate: 1.0,
             read_aloud_skip_citations: true,

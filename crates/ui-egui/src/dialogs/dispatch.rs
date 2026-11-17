@@ -1160,7 +1160,7 @@ fn about_dialog(ui: &mut Ui, d: &mut Dialog) -> bool {
     let Dialog::About { tab } = d else {
         return false;
     };
-    ui.set_width(820.0);
+    ui.set_width(if *tab == 0 { 510.0 } else { 820.0 });
     let names = [tl!("About").to_string(), tl!("Contributors").to_string(), tl!("Models").to_string(), tl!("Language data").to_string()];
     if let Some(i) = crate::widgets::dialog_tabs(ui, &names, *tab as usize) {
         *tab = i as u8;
@@ -1171,16 +1171,37 @@ fn about_dialog(ui: &mut Ui, d: &mut Dialog) -> bool {
         2 => crate::credits::models_ui(ui),
         3 => crate::language_packs::about_tab(ui),
         _ => {
-            ui.label(egui::RichText::new(tl!("WordCraft")).font(semibold(22.0)));
-            let build = option_env!("WORDCRAFT_BUILD_SHA").map(|s| s.get(..8).unwrap_or(s)).unwrap_or(tl!("development build"));
-            ui.label(crate::i18n::fmt(tl!("Version {version} ({build})"), &[("version", env!("CARGO_PKG_VERSION")), ("build", build)]));
-            ui.label(tl!("A free, open-source word processor written from scratch in Rust.\nPart of the Crafting Apps from the ArtCraft team."));
-            ui.add_space(6.0);
-            ui.hyperlink_to(tl!("getartcraft.com/apps/wordcraft"), "https://getartcraft.com/apps/wordcraft");
-            ui.hyperlink_to(tl!("Join us on Discord: discord.gg/artcraft"), "https://discord.gg/artcraft");
-            ui.hyperlink_to(tl!("Source code: github.com/storytold/wordcraft"), "https://github.com/storytold/wordcraft");
-            ui.add_space(6.0);
-            ui.label(egui::RichText::new(tl!("MIT OR Apache-2.0. Copyright (c) 2026 ArtCraft Team and the WordCraft contributors.")).small().weak());
+            let pt = crate::i18n::current().code() == "pt-br";
+            ui.vertical_centered(|ui| {
+                let id = egui::Id::unique("word-aw-wilson-logo");
+                let mut texture = ui.ctx().data_mut(|data| data.get_temp::<egui::TextureHandle>(id));
+                if texture.is_none()
+                    && let Ok(image) =
+                        image::load_from_memory_with_format(include_bytes!("../../../../assets/wilson/logo.png"), image::ImageFormat::Png)
+                {
+                    let rgba = image.into_rgba8();
+                    let pixels = egui::ColorImage::from_rgba_unmultiplied([rgba.width() as usize, rgba.height() as usize], rgba.as_raw());
+                    let logo = ui.ctx().load_texture("Alimentos Wilson", pixels, egui::TextureOptions::LINEAR);
+                    ui.ctx().data_mut(|data| data.insert_temp(id, logo.clone()));
+                    texture = Some(logo);
+                }
+                if let Some(texture) = texture {
+                    ui.add(egui::Image::new((texture.id(), texture.size_vec2() * (156.0 / texture.size_vec2().x))).alt_text("Alimentos Wilson"));
+                }
+                ui.label(egui::RichText::new("Word AW").font(semibold(26.0)));
+                let version = env!("CARGO_PKG_VERSION");
+                ui.label(if pt { format!("Versão {version}") } else { format!("Version {version}") });
+                ui.add_space(10.0);
+                ui.label(if pt { "Autor da edição" } else { "Edition author" });
+                ui.label(egui::RichText::new("Caio Victor Rodrigues").strong());
+                ui.add_space(10.0);
+                ui.separator();
+                ui.label(egui::RichText::new("Cera ao Sol").color(Tokens::get(ui.ctx()).accent).strong());
+                ui.hyperlink_to(
+                    if pt { "Licenças e atribuições" } else { "Licenses and attribution" },
+                    "https://github.com/storytold/wordcraft/blob/v0.18.1/NOTICE",
+                );
+            });
         }
     }
     // One Close button: About has nothing to cancel.
@@ -1228,12 +1249,16 @@ fn save_changes_dialog(app: &mut WordApp, ui: &mut Ui, d: &mut Dialog) -> bool {
         ui.add_space(4.0);
         ui.label(egui::RichText::new(message.as_str()).color(ui.visuals().error_fg_color));
     }
-    ui.add_space(8.0);
+    ui.add_space(12.0);
+    ui.separator();
+    ui.add_space(6.0);
     let buttons = ui.horizontal(|ui| {
         ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
-            let cancel = ui.button(tl!("Cancel"));
-            let dont_save = ui.button(tl!("Don't Save"));
-            let save = ui.add(crate::widgets::primary_button(ui, tl!("Save")));
+            let t = Tokens::get(ui.ctx());
+            let cancel = ui.add(egui::Button::new(tl!("Cancel")).corner_radius(8).min_size(vec2(76.0, 32.0)));
+            let dont_save =
+                ui.add(egui::Button::new(egui::RichText::new(tl!("Don't Save")).color(t.accent)).corner_radius(8).min_size(vec2(96.0, 32.0)));
+            let save = ui.add(crate::widgets::primary_button(ui, tl!("Save")).corner_radius(8).min_size(vec2(76.0, 32.0)));
             [(cancel, "cancel"), (dont_save, "dontSave"), (save, "save")]
         })
         .inner
