@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use egui::{Align2, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Rect, Stroke, Visuals};
 
-/// WordCraft's app colour (and its darker ink for text on light backgrounds).
-pub const APP_COLOR: Color32 = Color32::from_rgb(0xA1, 0x3D, 0x3A);
-pub const APP_INK: Color32 = Color32::from_rgb(0x2B, 0x47, 0xB5);
+/// Word AW's app colour (and its darker ink for text on light backgrounds).
+pub const APP_COLOR: Color32 = Color32::from_rgb(0x8D, 0x5E, 0x00);
+pub const APP_INK: Color32 = Color32::from_rgb(0x75, 0x4D, 0x00);
 
 /// The interface theme setting (File › Options › General, View › Interface Theme): a fixed light or
 /// dark palette, or `System`, which follows the OS light/dark appearance live (#115). Dark page
@@ -248,8 +248,11 @@ pub struct Tokens {
     pub pressed: Color32,
     pub checked: Color32,
     pub accent: Color32,
-    /// The File page's side bar; white text and icons sit on it in both themes.
+    pub secondary: Color32,
+    /// The File page's gold sidebar and its text.
     pub nav: Color32,
+    pub nav_end: Color32,
+    pub nav_ink: Color32,
     pub accent_text: Color32,
     /// Text/icon colour drawn on top of `accent` (e.g. keytip badge letters).
     pub on_accent: Color32,
@@ -317,9 +320,12 @@ impl Tokens {
             icon: Color32::from_rgb(0x42, 0x42, 0x42),
             hover: Color32::from_rgb(0xE6, 0xE6, 0xE6),
             pressed: Color32::from_rgb(0xD6, 0xD6, 0xD6),
-            checked: Color32::from_rgb(0xDD, 0xE3, 0xF8),
+            checked: Color32::from_rgb(0xFB, 0xEB, 0xBD),
             accent: APP_COLOR,
-            nav: APP_COLOR,
+            secondary: Color32::from_rgb(0xA1, 0x3D, 0x3A),
+            nav: Color32::from_rgb(0xF6, 0xCE, 0x68),
+            nav_end: Color32::from_rgb(0xDE, 0xAC, 0x40),
+            nav_ink: Color32::from_rgb(0x25, 0x18, 0x0A),
             accent_text: APP_INK,
             on_accent: Color32::WHITE,
             input: Color32::WHITE,
@@ -329,7 +335,7 @@ impl Tokens {
             ruler_margin: Color32::from_rgb(0xD4, 0xD4, 0xD4),
             ruler_tick: Color32::from_rgb(0x70, 0x70, 0x70),
             status_bar: Color32::from_rgb(0xF0, 0xF0, 0xF0),
-            selection: Color32::from_rgba_unmultiplied(0xA1, 0x3D, 0x3A, 0x48),
+            selection: Color32::from_rgba_unmultiplied(0x8D, 0x5E, 0x00, 0x48),
             find_highlight: Color32::from_rgba_unmultiplied(0xFF, 0xE0, 0x3D, 0x90),
             page_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x22),
             handle: Color32::WHITE,
@@ -382,12 +388,14 @@ impl Tokens {
             icon: Color32::from_rgb(0xDD, 0xDD, 0xDD),
             hover: Color32::from_rgb(0x3D, 0x3D, 0x3D),
             pressed: Color32::from_rgb(0x4A, 0x4A, 0x4A),
-            checked: Color32::from_rgb(0x2E, 0x3A, 0x66),
-            accent: Color32::from_rgb(0xF0, 0xA5, 0x9C),
-            nav: Color32::from_rgb(0x62, 0x35, 0x31),
-            accent_text: Color32::from_rgb(0x9C, 0xB0, 0xF5),
-            // Dark text on the light dark-theme accent: white on #7a93f0 is only 2.9:1 (#655).
-            on_accent: Color32::from_rgb(0x36, 0x23, 0x23),
+            checked: Color32::from_rgb(0x55, 0x44, 0x21),
+            accent: Color32::from_rgb(0xF3, 0xC7, 0x5E),
+            secondary: Color32::from_rgb(0xFF, 0xAA, 0x9D),
+            nav: Color32::from_rgb(0xC7, 0x9A, 0x43),
+            nav_end: Color32::from_rgb(0xAC, 0x81, 0x33),
+            nav_ink: Color32::from_rgb(0x1B, 0x12, 0x06),
+            accent_text: Color32::from_rgb(0xFF, 0xDA, 0x83),
+            on_accent: Color32::from_rgb(0x2D, 0x20, 0x0C),
             input: Color32::from_rgb(0x1E, 0x1E, 0x1E),
             input_border: Color32::from_rgb(0x7A, 0x7A, 0x7A),
             group_label: Color32::from_rgb(0xA0, 0xA0, 0xA0),
@@ -396,7 +404,7 @@ impl Tokens {
             ruler_margin: Color32::from_rgb(0x2E, 0x2E, 0x2E),
             ruler_tick: Color32::from_rgb(0xB4, 0xB4, 0xB4),
             status_bar: Color32::from_rgb(0x1F, 0x1F, 0x1F),
-            selection: Color32::from_rgba_unmultiplied(0xF0, 0xA5, 0x9C, 0x55),
+            selection: Color32::from_rgba_unmultiplied(0xF3, 0xC7, 0x5E, 0x55),
             find_highlight: Color32::from_rgba_unmultiplied(0xC8, 0xA8, 0x00, 0x70),
             page_shadow: Color32::from_rgba_unmultiplied(0, 0, 0, 0x60),
             handle: Color32::from_rgb(0xF2, 0xF2, 0xF2),
@@ -986,12 +994,12 @@ mod tests {
         }
     }
 
-    /// White text and icons on the File page's side bar reach 4.5:1 in both themes.
+    /// Text and icons on the File page's sidebar reach 4.5:1 in both themes.
     #[test]
     fn the_file_sidebar_reads_in_both_themes() {
         for t in [super::Tokens::light(), super::Tokens::dark()] {
-            let r = contrast(egui::Color32::WHITE, t.nav);
-            assert!(r >= 4.5, "dark={}: white on the sidebar is {r:.2}:1", t.dark);
+            let r = contrast(t.nav_ink, t.nav).min(contrast(t.nav_ink, t.nav_end));
+            assert!(r >= 4.5, "dark={}: text on the sidebar is {r:.2}:1", t.dark);
         }
     }
 

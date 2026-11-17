@@ -133,12 +133,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             let direction = if rtl { 1.0 } else { -1.0 };
             let offset = vec2(direction * 96.0 * (1.0 - nav_progress), 0.0);
             let clip = ui.clip_rect();
-            gradient(
-                ui,
-                clip.translate(offset),
-                t.nav,
-                if t.dark { egui::Color32::from_rgb(46, 33, 34) } else { egui::Color32::from_rgb(109, 42, 42) },
-            );
+            gradient(ui, clip.translate(offset), t.nav, t.nav_end);
             let content = ui.max_rect().translate(offset);
             ui.scope_builder(egui::UiBuilder::new().max_rect(content), |ui| {
                 ui.set_clip_rect(clip.intersect(clip.translate(offset)));
@@ -163,8 +158,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         ui.painter(),
                         Rect::from_center_size(c, vec2(18.0, 18.0)),
                         if rtl { "chevronRight" } else { "chevronLeft" },
-                        egui::Color32::WHITE,
-                        egui::Color32::WHITE,
+                        t.nav_ink,
+                        t.nav_ink,
                     );
                     resp
                 } else {
@@ -178,8 +173,8 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         ui.painter(),
                         Rect::from_center_size(c, vec2(18.0, 18.0)),
                         if rtl { "chevronRight" } else { "chevronLeft" },
-                        egui::Color32::WHITE,
-                        egui::Color32::WHITE,
+                        t.nav_ink,
+                        t.nav_ink,
                     );
                     resp
                 };
@@ -196,13 +191,13 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, on, tl!(label)));
                     let active = app.ui.backstage_page == id;
                     if active {
-                        ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_black_alpha(55));
+                        ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(55));
                         let marker = Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 14.0), r.center().y), vec2(3.0, 15.0));
-                        ui.painter().rect_filled(marker, 2, egui::Color32::from_rgb(238, 198, 101));
+                        ui.painter().rect_filled(marker, 2, if t.dark { egui::Color32::from_rgb(135, 44, 35) } else { t.secondary });
                     } else if on && resp.hovered() {
                         ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(26));
                     }
-                    let ink = if on { egui::Color32::WHITE } else { egui::Color32::from_white_alpha(110) };
+                    let ink = if on { t.nav_ink } else { t.nav_ink.gamma_multiply(0.63) };
                     icons::paint(
                         ui.painter(),
                         Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 31.0), r.center().y), vec2(18.0, 18.0)),
@@ -235,7 +230,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                             ui.painter().rect_filled(r.shrink2(vec2(8.0, 2.0)), 8, egui::Color32::from_white_alpha(26));
                         }
                         let at = pos2(crate::rtl::lead_x(rtl, r, 22.0), r.center().y);
-                        ui.painter().text(at, crate::rtl::lead_center(rtl), tl!(label), regular(13.0), egui::Color32::WHITE);
+                        ui.painter().text(at, crate::rtl::lead_center(rtl), tl!(label), regular(13.0), t.nav_ink);
                         if resp.clicked() {
                             if id == "discord" {
                                 let _ = app.run("ui.discord", json!({}));
@@ -388,7 +383,7 @@ pub(crate) fn heading(ui: &mut Ui, s: &str) {
     let (rule, _) = ui.allocate_exact_size(vec2(48.0, 3.0), Sense::hover());
     let tokens = Tokens::get(ui.ctx());
     ui.painter().rect_filled(rule, 1, tokens.accent);
-    ui.painter().rect_filled(Rect::from_min_max(pos2(rule.center().x, rule.top()), rule.max), 1, egui::Color32::from_rgb(238, 198, 101));
+    ui.painter().rect_filled(Rect::from_min_max(pos2(rule.center().x, rule.top()), rule.max), 1, tokens.secondary);
     ui.add_space(14.0);
 }
 

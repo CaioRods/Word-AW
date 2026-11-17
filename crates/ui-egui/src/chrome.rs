@@ -315,9 +315,9 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
         .show(ui, |ui| {
             let full = ui.max_rect();
             let (start, end) = if t.dark {
-                (egui::Color32::from_rgb(61, 43, 41), egui::Color32::from_rgb(49, 44, 36))
+                (egui::Color32::from_rgb(59, 48, 27), egui::Color32::from_rgb(49, 40, 34))
             } else {
-                (egui::Color32::from_rgb(250, 238, 234), egui::Color32::from_rgb(252, 247, 234))
+                (egui::Color32::from_rgb(253, 244, 218), egui::Color32::from_rgb(251, 240, 232))
             };
             let rect = ui.clip_rect();
             let mut mesh = egui::Mesh::default();

@@ -3,17 +3,17 @@ fn acrylic_surface(rect: egui::Rect, frame: egui::Frame, dark: bool) -> egui::Sh
     use egui::epaint::RectShape;
     use egui::{Color32, Rect, Shape, pos2, vec2};
 
-    let (base, warm, amber) = if dark {
+    let (base, amber, red) = if dark {
         (
-            Color32::from_rgba_unmultiplied(40, 37, 39, 221),
-            Color32::from_rgba_unmultiplied(124, 73, 74, 92),
-            Color32::from_rgba_unmultiplied(119, 88, 56, 71),
+            Color32::from_rgba_unmultiplied(43, 39, 32, 221),
+            Color32::from_rgba_unmultiplied(150, 110, 43, 108),
+            Color32::from_rgba_unmultiplied(124, 73, 74, 63),
         )
     } else {
         (
-            Color32::from_rgba_unmultiplied(251, 248, 246, 217),
-            Color32::from_rgba_unmultiplied(231, 162, 157, 89),
-            Color32::from_rgba_unmultiplied(241, 205, 138, 86),
+            Color32::from_rgba_unmultiplied(252, 249, 239, 217),
+            Color32::from_rgba_unmultiplied(244, 202, 112, 108),
+            Color32::from_rgba_unmultiplied(231, 162, 157, 60),
         )
     };
     let blur = (rect.height() * 0.24).clamp(8.0, 48.0);
@@ -25,8 +25,8 @@ fn acrylic_surface(rect: egui::Rect, frame: egui::Frame, dark: bool) -> egui::Sh
     Shape::Vec(vec![
         frame.shadow.as_shape(rect, frame.corner_radius).into(),
         Shape::rect_filled(rect, frame.corner_radius, base),
-        glow(0.32, 0.31, warm),
-        glow(0.68, 0.67, amber),
+        glow(0.32, 0.31, amber),
+        glow(0.68, 0.67, red),
     ])
 }
 
