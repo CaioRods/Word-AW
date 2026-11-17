@@ -88,7 +88,7 @@ fn motion(ui: &Ui, page: &str) -> (f32, f32) {
         }
         state.clone()
     });
-    let ease = |start, duration| {
+    let ease = |start: f64, duration: f64| {
         let progress: f64 = ((now - start) / duration).clamp(0.0, 1.0);
         (1.0 - (1.0 - progress).powi(2)) as f32
     };
