@@ -407,18 +407,8 @@ fn services(file_dialog: file_dialogs::Hook, ctx: &egui::Context) -> Services {
 
 /// Window, Dock and taskbar icon.
 fn app_icon() -> Option<egui::IconData> {
-    // Original AW artwork generated in code; also used by every native document window.
-    let glyph: [u8; 7] = [17, 17, 17, 21, 21, 21, 10];
-    let mut rgba = Vec::with_capacity(64 * 64 * 4);
-    for y in 0..64usize {
-        for x in 0..64usize {
-            let on =
-                (17..47).contains(&x) && (11..53).contains(&y) && glyph.get((y - 11) / 6).is_some_and(|row| row & (1 << (4 - (x - 17) / 6)) != 0);
-            let color = if on { [255, 218, 122, 255] } else { [151, 29, 39, 255] };
-            rgba.extend_from_slice(&color);
-        }
-    }
-    Some(egui::IconData { rgba, width: 64, height: 64 })
+    let png = include_bytes!("../../../assets/app-icon/wordcraft-macos-512.png");
+    eframe::icon_data::from_png_bytes(png).ok()
 }
 
 const USAGE: &str = "\

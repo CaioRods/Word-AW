@@ -393,16 +393,8 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
                     }
                     qat_end = if rtl { ui.min_rect().min.x } else { ui.min_rect().max.x };
                     ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
-                        // Account / community.
-                        let (r, resp) = ui.allocate_exact_size(vec2(control_h, control_h), Sense::click());
-                        ui.painter().circle_filled(r.center(), control_h / 2.0 - 1.0, t.accent);
-                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Account")));
-                        let initials: String = app.session.user_initials().chars().take(2).collect();
-                        if !app.ui.profile.avatar(ui, r) {
-                            ui.painter().text(r.center(), Align2::CENTER_CENTER, initials, semibold(10.5), t.on_accent);
-                        }
-                        if resp.on_hover_text(format!("{} — {}", app.session.author, tl!("Account"))).clicked() {
-                            let _ = app.run("ui.backstage", json!({"value": true, "page": "account"}));
+                        if app.windows.native() {
+                            account_button(app, ui, control_h);
                         }
                         ui.add_space(8.0);
                         search_box(app, ui, control_h);
@@ -1089,6 +1081,22 @@ pub(crate) fn status_count_text(unit: StatusCount, total: usize, selected: Optio
         (StatusCount::CharactersNoSpaces, Some(n)) => {
             crate::i18n::fmt(tl!("{selected} of {chars} characters (no spaces)"), &[("selected", &n.to_string()), ("chars", &total.to_string())])
         }
+    }
+}
+
+/// Account avatar kept in the first row alongside the document tabs.
+pub(crate) fn account_button(app: &mut WordApp, ui: &mut egui::Ui, height: f32) {
+    let t = Tokens::get(ui.ctx());
+    // Account / community.
+    let (r, resp) = ui.allocate_exact_size(vec2(height, height), Sense::click());
+    ui.painter().circle_filled(r.center(), height / 2.0 - 1.0, t.accent);
+    resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, tl!("Account")));
+    let initials: String = app.session.user_initials().chars().take(2).collect();
+    if !app.ui.profile.avatar(ui, r) {
+        ui.painter().text(r.center(), Align2::CENTER_CENTER, initials, semibold(10.5), t.on_accent);
+    }
+    if resp.on_hover_text(format!("{} — {}", app.session.author, tl!("Account"))).clicked() {
+        let _ = app.run("ui.backstage", json!({"value": true, "page": "account"}));
     }
 }
 

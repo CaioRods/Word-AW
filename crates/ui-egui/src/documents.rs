@@ -258,10 +258,19 @@ pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
         return;
     }
     let docs = app.session.documents();
-    let entries: Vec<_> = docs.iter().map(|d| (d.id, format!("{}{}", if d.dirty { "● " } else { "" }, display_title(d)), d.active)).collect();
-    let action = crate::document_strip::show(ui, &entries, crate::theme::Tokens::get(ui.ctx()).accent, crate::i18n::current().code() == "pt-br");
+    let entries: Vec<_> = docs
+        .iter()
+        .filter(|_| app.has_document())
+        .map(|d| (d.id, format!("{}{}", if d.dirty { "● " } else { "" }, display_title(d)), d.active))
+        .collect();
+    let t = crate::theme::Tokens::get(ui.ctx());
+    let style = crate::document_strip::Style { brand: "Word AW", accent: t.accent, active: t.ribbon, text: t.text, on_accent: t.on_accent };
+    let action = crate::document_strip::show_with_style(ui, &entries, style, crate::i18n::current().code() == "pt-br", |ui| {
+        crate::chrome::account_button(app, ui, 26.0)
+    });
     match action {
         Some(crate::document_strip::Action::Select(id)) => {
+            app.ui.backstage = false;
             let _ = app.run("view.switchWindows", json!({"id": id}));
         }
         // The interactive close path asks about unsaved edits.
@@ -270,6 +279,9 @@ pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
         }
         Some(crate::document_strip::Action::New) => {
             let _ = app.run("file.new", json!({}));
+        }
+        Some(crate::document_strip::Action::Home) => {
+            let _ = app.run("ui.backstage", json!({"value": true, "page": "home"}));
         }
         _ => {}
     }
