@@ -703,7 +703,8 @@ fn main() -> eframe::Result {
             // Nothing to open (no files, no sample, no control channel driving the editor): start
             // on File › Home, as Word does (#766), unless the Start screen option is off. Files
             // macOS hands over later open on top of it and close it (`apple_events`).
-            if files.is_empty() && other_files.is_empty() && !sample && control_port.is_none() {
+            // AWcontrol already provides Home; a hosted blank page must be an editable document.
+            if !aw_workspace::control::embedded() && files.is_empty() && other_files.is_empty() && !sample && control_port.is_none() {
                 app.start_screen();
             }
             // A Word template named here starts a new document based on it (#3433).
