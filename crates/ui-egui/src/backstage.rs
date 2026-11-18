@@ -138,7 +138,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     }
                 }
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                    for (id, label, icon) in [("options", "Options", "settings"), ("account", "Account", "user")] {
+                    for (id, label, icon) in PAGES.iter().copied().filter(|(id, _, _)| matches!(*id, "options" | "account")) {
                         if nav_row(app, ui, id, label, icon, true).clicked() {
                             go_to_page(app, id);
                         }
@@ -178,9 +178,22 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
 
 fn nav_row(app: &WordApp, ui: &mut Ui, id: &str, label: &str, icon: &str, enabled: bool) -> egui::Response {
     let icon = if id == "back" && crate::rtl::on() { "chevronRight" } else { icon };
-    let text = if crate::i18n::current().code() == "pt-br" && id == "home" { "Página Inicial" } else { tl!(label) };
+    let text = if crate::i18n::current().code() == "pt-br" {
+        match id {
+            "home" => "Página Inicial",
+            "back" => "Voltar",
+            _ => tl!(label),
+        }
+    } else {
+        tl!(label)
+    };
     let response = aw_workspace::navigation::row(ui, text, app.ui.backstage_page == id, enabled, crate::rtl::on(), |p, r, color| {
-        icons::paint(p, r, icon, color, color)
+        if id == "back" {
+            p.circle_stroke(r.center(), 7.0, Stroke::new(1.0, color));
+            icons::paint(p, r.shrink(4.0), icon, color, color);
+        } else {
+            icons::paint(p, r, icon, color, color);
+        }
     });
     if enabled
         && app.ui.keytips == crate::keytips::Phase::Backstage

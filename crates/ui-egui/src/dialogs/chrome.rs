@@ -255,6 +255,7 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
     .frame(frame.fill(egui::Color32::TRANSPARENT).shadow(egui::epaint::Shadow::NONE));
     let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Middle, id));
     let surface = painter.add(egui::Shape::Noop);
+    let window = if matches!(d, Dialog::About { tab: 0 }) { window.auto_sized() } else { window };
     let window = crate::window_close::window(ctx, window);
     // A file browser or Colors dialog it opened is above it and takes the keys: Escape or Enter
     // there doesn't also cancel or OK this one.
@@ -342,14 +343,40 @@ pub(crate) fn buttons(ui: &mut Ui, ok: &str) -> (bool, bool) {
 pub(super) fn close_button(ui: &mut Ui) -> bool {
     ui.add_space(8.0);
     let mut close = ui.input(|i| i.key_pressed(egui::Key::Escape));
-    ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
-        close |= ui.add(crate::widgets::primary_button(ui, tl!("Close"))).clicked();
+    ui.horizontal(|ui| {
+        ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
+            close |= ui.add(crate::widgets::primary_button(ui, tl!("Close"))).clicked();
+        });
     });
     close
 }
 
 #[cfg(test)]
 mod aw_surface_tests {
+    #[test]
+    fn about_is_compact_and_its_footer_closes_the_dialog() {
+        use egui_kittest::kittest::Queryable;
+        let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.use_document_tabs();
+        app.ui.language = "en".into();
+        app.run("ui.dialog", serde_json::json!({"name":"about"})).unwrap();
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 800.0)).build_ui_state(
+            |ui, app: &mut crate::WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        h.run_steps(8);
+        let icon = h.get_by_label("Word AW icon").rect();
+        let close = h.get_all_by_label("Close").find(|node| node.rect().top() > icon.bottom()).unwrap();
+        assert!(close.rect().bottom() - icon.top() < 220.0, "About should fit its logo, text and footer without a large blank area");
+        close.click();
+        h.run_steps(3);
+        assert!(h.state().dialog.is_none());
+    }
+
     #[test]
     fn aw_dialog_surface_is_opaque_over_the_document() {
         let bounds = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 300.0));

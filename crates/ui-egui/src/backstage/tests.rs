@@ -1298,6 +1298,7 @@ fn rtl_template_titles_are_right_aligned() {
 #[test]
 fn aw_sidebar_matches_excel_groups_and_keeps_account_options_at_bottom() {
     let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    app.use_document_tabs();
     app.ui.language = "en".into();
     app.run("ui.backstage", json!({"value":true,"page":"home"})).unwrap();
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
