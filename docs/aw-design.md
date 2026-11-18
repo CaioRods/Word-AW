@@ -9,3 +9,5 @@ Excel e Word compartilham o componente de navegação: linhas de 38 pontos, barr
 As janelas de diálogo têm fundo opaco, para os textos da tela anterior não atravessarem o conteúdo. As marcas já existentes de cada app aparecem ao lado dos nomes nas abas e em Sobre; os créditos públicos continuam como @CaioRods.
 
 A janela Sobre do Word ajusta a altura ao conteúdo e mantém Fechar em uma linha compacta; o ícone de Opções vem do mesmo catálogo vetorial usado nas demais entradas.
+
+Em janelas menores, os comandos do menu podem rolar; Conta e Opções permanecem separados na base, sem sobreposição com os comandos.

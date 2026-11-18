@@ -124,19 +124,21 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                     app.canvas.want_focus = true;
                 }
                 ui.add_space(10.0);
-                for (id, label, icon) in PAGES.iter().copied().take(3) {
-                    if nav_row(app, ui, id, label, icon, true).clicked() {
-                        go_to_page(app, id);
+                aw_workspace::navigation::scroll_main(ui, "word_aw_file_navigation", |ui| {
+                    for (id, label, icon) in PAGES.iter().copied().take(3) {
+                        if nav_row(app, ui, id, label, icon, true).clicked() {
+                            go_to_page(app, id);
+                        }
                     }
-                }
-                aw_workspace::navigation::separator(ui);
-                for (id, label, icon) in
-                    PAGES.iter().copied().filter(|(id, _, _)| matches!(*id, "info" | "save" | "saveAs" | "print" | "export" | "close"))
-                {
-                    if nav_row(app, ui, id, label, icon, has_document).clicked() {
-                        go_to_page(app, id);
+                    aw_workspace::navigation::separator(ui);
+                    for (id, label, icon) in
+                        PAGES.iter().copied().filter(|(id, _, _)| matches!(*id, "info" | "save" | "saveAs" | "print" | "export" | "close"))
+                    {
+                        if nav_row(app, ui, id, label, icon, has_document).clicked() {
+                            go_to_page(app, id);
+                        }
                     }
-                }
+                });
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                     for (id, label, icon) in PAGES.iter().copied().filter(|(id, _, _)| matches!(*id, "options" | "account")) {
                         if nav_row(app, ui, id, label, icon, true).clicked() {
