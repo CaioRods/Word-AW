@@ -19,7 +19,7 @@ const PAGES: [(&str, &str, &str); 12] = [
     ("export", "Export", "export"),
     ("close", "Close", "close"),
     ("options", "Options", "options"),
-    ("account", "Account", "info"),
+    ("account", "Account", "user"),
 ];
 
 /// The Backstage pages' keytips, as Word's (#4960): Alt, F, then a letter. V is Word's older
@@ -51,6 +51,7 @@ fn keytip_letter(page: &str) -> Option<&'static str> {
 /// The Backstage back chevron's centre on macOS (#1873): beside the traffic lights in a
 /// window (the title bar's content edge), at the plain control inset in full screen, where the
 /// lights aren't docked top-left and the reserved offset would leave dead space.
+#[cfg(test)]
 fn back_chevron_c(band_min_x: f32, center_y: f32, fullscreen: bool, content_left: f32) -> egui::Pos2 {
     let x = if fullscreen { 26.0 } else { content_left + 3.0 };
     pos2(band_min_x + x, center_y)
@@ -91,17 +92,6 @@ fn motion(ui: &Ui, page: &str) -> (f32, f32) {
     (nav, page)
 }
 
-fn gradient(ui: &Ui, rect: Rect, top: egui::Color32, bottom: egui::Color32) {
-    let mut mesh = egui::Mesh::default();
-    mesh.colored_vertex(rect.left_top(), top);
-    mesh.colored_vertex(rect.right_top(), top);
-    mesh.colored_vertex(rect.right_bottom(), bottom);
-    mesh.colored_vertex(rect.left_bottom(), bottom);
-    mesh.add_triangle(0, 1, 2);
-    mesh.add_triangle(0, 2, 3);
-    ui.painter().add(egui::Shape::mesh(mesh));
-}
-
 /// Draws the Backstage side menu and the active page. Without a document only the Home, New, Open
 /// and Options pages work, and it handles Back, Escape, Save, Save As and Close routing.
 pub fn show(app: &mut WordApp, ui: &mut Ui) {
@@ -112,139 +102,46 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         app.ui.backstage_page = "home".into();
     }
     let (nav_progress, page_progress) = motion(ui, &app.ui.backstage_page);
-    let mac = app.integrated_titlebar;
     crate::rtl::start_panel("backstage_nav")
-        .exact_size(200.0)
-        // Fixed width, as in Word: without this egui shows a resize handle that does nothing (#502).
+        .exact_size(aw_workspace::navigation::WIDTH)
         .resizable(false)
-        .frame(egui::Frame::NONE.fill(t.ribbon).inner_margin(egui::Margin { left: 0, right: 0, top: if mac { 0 } else { 12 }, bottom: 12 }))
+        .frame(egui::Frame::NONE.fill(t.ribbon).inner_margin(egui::Margin { left: 0, right: 0, top: 10, bottom: 10 }))
         .show(ui, |ui| {
-            // Right to left the navigation is on the right, away from the macOS traffic lights.
             let rtl = crate::rtl::on();
-            // Animate the paint without moving the menu's click targets or the macOS drag band.
-            let clip = ui.clip_rect();
-            gradient(ui, clip, t.nav, t.nav_end);
-            if nav_progress < 1.0 {
-                let x = crate::rtl::lead_x(rtl, clip, clip.width() * nav_progress);
-                let reveal =
-                    if rtl { Rect::from_min_max(clip.min, pos2(x, clip.bottom())) } else { Rect::from_min_max(pos2(x, clip.top()), clip.max) };
-                ui.painter().rect_filled(reveal, 0.0, t.ribbon.gamma_multiply(0.24 * (1.0 - nav_progress)));
-            }
-            ui.scope(|ui| {
-                ui.multiply_opacity(0.80 + 0.20 * nav_progress);
-                let back = if mac {
-                    // macOS (#222): the Backstage covers the title bar, so its top band is the title
-                    // bar: the back button sits beside the traffic lights, centred with them and as far
-                    // from them as the title bar's own controls, and the rest of the band drags the window.
-                    let (band, drag) = ui.allocate_exact_size(vec2(200.0, app.mac_titlebar.height), Sense::click_and_drag());
-                    if drag.drag_started() {
-                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
-                    }
-                    crate::chrome::note_title_drag(ui.ctx(), band);
-                    // The chevron's stroke starts at the content edge.
-                    let c = if rtl {
-                        pos2(band.max.x - 26.0, band.center().y)
-                    } else {
-                        back_chevron_c(band.min.x, band.center().y, app.session.view.full_screen, app.mac_titlebar.content_left)
-                    };
-                    let resp =
-                        ui.interact(Rect::from_center_size(c, vec2(22.0, band.height())), ui.scope_id().with("backstage_back"), Sense::click());
-                    icons::paint(
-                        ui.painter(),
-                        Rect::from_center_size(c, vec2(18.0, 18.0)),
-                        if rtl { "chevronRight" } else { "chevronLeft" },
-                        t.nav_ink,
-                        t.nav_ink,
-                    );
-                    resp
-                } else {
-                    // The hit area is scoped to the chevron, not the whole 200px-wide row (#3041):
-                    // the row reads as plain sidebar background next to it, so clicking there must
-                    // not also close the File page, same as the macOS chevron fix (#2972) below.
-                    let (r, _) = ui.allocate_exact_size(vec2(200.0, 40.0), Sense::hover());
-                    let c = pos2(crate::rtl::lead_x(rtl, r, 26.0), r.center().y);
-                    let resp = ui.interact(Rect::from_center_size(c, vec2(22.0, r.height())), ui.scope_id().with("backstage_back"), Sense::click());
-                    icons::paint(
-                        ui.painter(),
-                        Rect::from_center_size(c, vec2(18.0, 18.0)),
-                        if rtl { "chevronRight" } else { "chevronLeft" },
-                        t.nav_ink,
-                        t.nav_ink,
-                    );
-                    resp
-                };
-                // Escape in the built-in file browser closes only the browser.
+            let rect = ui.clip_rect();
+            aw_workspace::navigation::background(ui, rect, t.dark);
+            let direction = if rtl { 1.0 } else { -1.0 };
+            let content = ui.max_rect().translate(vec2(direction * 96.0 * (1.0 - nav_progress), 0.0));
+            ui.scope_builder(egui::UiBuilder::new().max_rect(content), |ui| {
+                ui.set_clip_rect(rect);
+                ui.spacing_mut().item_spacing.y = 2.0;
+                if app.integrated_titlebar {
+                    ui.add_space(app.mac_titlebar.height);
+                }
+                let back = nav_row(app, ui, "back", "Back", "chevronLeft", true);
                 if back.clicked() || (!app.file_dialog_open() && ui.input(|i| i.key_pressed(egui::Key::Escape))) {
                     app.ui.backstage = false;
                     app.canvas.want_focus = true;
                 }
-                ui.add_space(if mac { 12.0 } else { 6.0 });
-                let (brand, _) = ui.allocate_exact_size(vec2(200.0, 30.0), Sense::hover());
-                let at = pos2(crate::rtl::lead_x(rtl, brand, 21.0), brand.center().y);
-                ui.painter().text(at, crate::rtl::lead_center(rtl), "Word AW", semibold(17.0), t.nav_ink);
-                ui.add_space(5.0);
-                egui::ScrollArea::vertical().max_height((ui.available_height() - 48.0).max(0.0)).auto_shrink([false, true]).show(ui, |ui| {
-                    for (id, label, icon) in PAGES {
-                        if matches!(id, "save" | "options") {
-                            ui.add_space(6.0);
-                            let (band, _) = ui.allocate_exact_size(vec2(200.0, 7.0), Sense::hover());
-                            ui.painter().hline(
-                                band.left() + 18.0..=band.right() - 18.0,
-                                band.center().y,
-                                Stroke::new(1.0, t.nav_ink.gamma_multiply(0.22)),
-                            );
-                            ui.add_space(5.0);
-                        }
-                        // No document open (#1129): Info, Save, Save As, Print and Export are greyed out.
-                        let on = has_document || works_without_document(id);
-                        let (r, resp) = ui.add_enabled_ui(on, |ui| ui.allocate_exact_size(vec2(200.0, 38.0), Sense::click())).inner;
-                        resp.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, on, tl!(label)));
-                        let active = app.ui.backstage_page == id;
-                        if active {
-                            ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(55));
-                            let marker = Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 14.0), r.center().y), vec2(3.0, 15.0));
-                            ui.painter().rect_filled(marker, 2, if t.dark { egui::Color32::from_rgb(135, 44, 35) } else { t.secondary });
-                        } else if on && (resp.hovered() || resp.has_focus()) {
-                            ui.painter().rect_filled(r.shrink2(vec2(12.0, 2.0)), 11, egui::Color32::from_white_alpha(26));
-                        }
-                        let ink = if on { t.nav_ink } else { t.nav_ink.gamma_multiply(0.63) };
-                        icons::paint(
-                            ui.painter(),
-                            Rect::from_center_size(pos2(crate::rtl::lead_x(rtl, r, 31.0), r.center().y), vec2(18.0, 18.0)),
-                            icon,
-                            ink,
-                            ink,
-                        );
-                        ui.painter().text(
-                            pos2(crate::rtl::lead_x(rtl, r, 52.0), r.center().y),
-                            crate::rtl::lead_center(rtl),
-                            tl!(label),
-                            if active { semibold(14.0) } else { medium(14.0) },
-                            ink,
-                        );
-                        if on
-                            && app.ui.keytips == crate::keytips::Phase::Backstage
-                            && let Some(letter) = keytip_letter(id)
-                        {
-                            crate::keytips::badge(ui, Rect::from_min_size(pos2(r.min.x + 16.0, r.min.y), vec2(20.0, 16.0)), letter);
-                        }
-                        if resp.clicked() {
+                ui.add_space(10.0);
+                for (id, label, icon) in PAGES.iter().copied().take(3) {
+                    if nav_row(app, ui, id, label, icon, true).clicked() {
+                        go_to_page(app, id);
+                    }
+                }
+                aw_workspace::navigation::separator(ui);
+                for (id, label, icon) in
+                    PAGES.iter().copied().filter(|(id, _, _)| matches!(*id, "info" | "save" | "saveAs" | "print" | "export" | "close"))
+                {
+                    if nav_row(app, ui, id, label, icon, has_document).clicked() {
+                        go_to_page(app, id);
+                    }
+                }
+                ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                    for (id, label, icon) in [("options", "Options", "settings"), ("account", "Account", "user")] {
+                        if nav_row(app, ui, id, label, icon, true).clicked() {
                             go_to_page(app, id);
                         }
-                    }
-                });
-                ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                    let (row, response) = ui.allocate_exact_size(vec2(200.0, 42.0), Sense::click());
-                    let label = tl!("About");
-                    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
-                    let pill = row.shrink2(vec2(12.0, 3.0));
-                    ui.painter().rect_filled(pill, 11, egui::Color32::from_white_alpha(if response.hovered() { 85 } else { 48 }));
-                    let icon = pos2(crate::rtl::lead_x(rtl, row, 30.0), row.center().y);
-                    icons::paint(ui.painter(), Rect::from_center_size(icon, vec2(16.0, 16.0)), "info", t.nav_ink, t.nav_ink);
-                    let text = pos2(crate::rtl::lead_x(rtl, row, 52.0), row.center().y);
-                    ui.painter().text(text, crate::rtl::lead_center(rtl), label, semibold(14.0), t.nav_ink);
-                    if response.clicked() {
-                        app.dialog = crate::dialogs::Dialog::open("about", app);
                     }
                 });
             });
@@ -279,6 +176,21 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
+fn nav_row(app: &WordApp, ui: &mut Ui, id: &str, label: &str, icon: &str, enabled: bool) -> egui::Response {
+    let icon = if id == "back" && crate::rtl::on() { "chevronRight" } else { icon };
+    let text = if crate::i18n::current().code() == "pt-br" && id == "home" { "Página Inicial" } else { tl!(label) };
+    let response = aw_workspace::navigation::row(ui, text, app.ui.backstage_page == id, enabled, crate::rtl::on(), |p, r, color| {
+        icons::paint(p, r, icon, color, color)
+    });
+    if enabled
+        && app.ui.keytips == crate::keytips::Phase::Backstage
+        && let Some(letter) = keytip_letter(id)
+    {
+        crate::keytips::badge(ui, response.rect, letter);
+    }
+    response
+}
+
 fn account(app: &mut WordApp, ui: &mut Ui) {
     let pt = crate::i18n::current().code() == "pt-br";
     let mut name = app.session.author.clone();
@@ -290,6 +202,10 @@ fn account(app: &mut WordApp, ui: &mut Ui) {
     if let Some(slot) = slot {
         use crate::file_dialogs::{AfterPick, FileDialogRequest};
         let _ = app.ask_file(FileDialogRequest::Open { purpose: "profile-picture".into() }, AfterPick::ProfileImage(slot));
+    }
+    ui.add_space(16.0);
+    if ui.button(if pt { "Sobre o Word AW" } else { "About Word AW" }).clicked() {
+        app.dialog = crate::dialogs::Dialog::open("about", app);
     }
 }
 
@@ -814,6 +730,10 @@ pub(crate) fn open_recent(app: &mut WordApp, path: &str) -> Result<(), String> {
 }
 
 fn open_page(app: &mut WordApp, ui: &mut Ui) {
+    if ui.button(tl!("Recover documents")).clicked() {
+        app.ui.backstage_page = "recover".into();
+    }
+
     heading(ui, "Open");
     if ui.button(egui::RichText::new(tl!("Browse…")).font(medium(14.0))).clicked() {
         let _ = app.run("ui.openFileDialog", json!({}));

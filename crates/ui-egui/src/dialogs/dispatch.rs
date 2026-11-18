@@ -1174,32 +1174,41 @@ fn about_dialog(ui: &mut Ui, d: &mut Dialog) -> bool {
     ui.add_space(6.0);
     let pt = crate::i18n::current().code() == "pt-br";
     ui.vertical_centered(|ui| {
-        let id = egui::Id::unique("word-aw-wilson-logo");
+        let id = egui::Id::unique("word-aw-about-logo");
         let mut texture = ui.ctx().data_mut(|data| data.get_temp::<egui::TextureHandle>(id));
         if texture.is_none()
-            && let Ok(image) = image::load_from_memory_with_format(include_bytes!("../../../../assets/wilson/logo.png"), image::ImageFormat::Png)
+            && let Ok(image) =
+                image::load_from_memory_with_format(include_bytes!("../../../../assets/app-icon/wordcraft-macos-512.png"), image::ImageFormat::Png)
         {
             let rgba = image.into_rgba8();
             let pixels = egui::ColorImage::from_rgba_unmultiplied([rgba.width() as usize, rgba.height() as usize], rgba.as_raw());
-            let logo = ui.ctx().load_texture("Alimentos Wilson", pixels, egui::TextureOptions::LINEAR);
+            let logo = ui.ctx().load_texture("Word AW", pixels, egui::TextureOptions::LINEAR);
             ui.ctx().data_mut(|data| data.insert_temp(id, logo.clone()));
             texture = Some(logo);
         }
-        if let Some(texture) = texture {
-            ui.add(egui::Image::new((texture.id(), texture.size_vec2() * (156.0 / texture.size_vec2().x))).alt_text("Alimentos Wilson"));
-        }
-        ui.label(egui::RichText::new("Word AW").font(semibold(26.0)));
-        let version = env!("CARGO_PKG_VERSION");
-        ui.label(if pt { format!("Versão {version}") } else { format!("Version {version}") });
+        let title_width = ui.painter().layout_no_wrap("Word AW".into(), semibold(26.0), Tokens::get(ui.ctx()).text).size().x;
+        let gap = if texture.is_some() { 68.0 } else { 0.0 };
+        let left = ((ui.available_width() - title_width - gap) / 2.0).max(0.0);
+        ui.horizontal(|ui| {
+            ui.add_space(left);
+            if let Some(texture) = texture {
+                ui.add(egui::Image::new((texture.id(), egui::vec2(56.0, 56.0))).alt_text(if pt { "Ícone do Word AW" } else { "Word AW icon" }));
+                ui.add_space(4.0);
+            }
+            ui.vertical(|ui| {
+                ui.label(egui::RichText::new("Word AW").font(semibold(26.0)));
+                let version = env!("CARGO_PKG_VERSION");
+                ui.label(if pt { format!("Versão {version}") } else { format!("Version {version}") });
+            });
+        });
         ui.add_space(10.0);
         ui.label(if pt { "Autor da edição" } else { "Edition author" });
-        ui.label(egui::RichText::new("Caio Victor Rodrigues").strong());
+        ui.label(egui::RichText::new("@CaioRods").strong());
         ui.add_space(10.0);
         ui.separator();
-        ui.label(egui::RichText::new("Cera ao Sol").color(Tokens::get(ui.ctx()).accent).strong());
         ui.hyperlink_to(
             if pt { "Licenças e atribuições" } else { "Licenses and attribution" },
-            "https://github.com/CaioRods/Word-AW/blob/wordaw/NOTICE",
+            "https://github.com/CaioRods/Word-AW/blob/aw-document-tabs/NOTICE",
         );
     });
     // One Close button: About has nothing to cancel.

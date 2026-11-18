@@ -264,7 +264,15 @@ pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
         .map(|d| (d.id, format!("{}{}", if d.dirty { "● " } else { "" }, display_title(d)), d.active))
         .collect();
     let t = crate::theme::Tokens::get(ui.ctx());
-    let style = crate::document_strip::Style { brand: "Word AW", accent: t.accent, active: t.ribbon, text: t.text, on_accent: t.on_accent };
+    let style = crate::document_strip::Style {
+        brand: "Word AW",
+        accent: t.accent,
+        active: t.ribbon,
+        text: t.text,
+        on_accent: t.on_accent,
+        trailing_width: 44.0,
+        logo: crate::document_strip::logo(ui.ctx(), "Word AW", include_bytes!("../../../assets/app-icon/wordcraft-macos-512.png")),
+    };
     let action = crate::document_strip::show_with_style(ui, &entries, style, crate::i18n::current().code() == "pt-br", |ui| {
         crate::chrome::account_button(app, ui, 26.0)
     });

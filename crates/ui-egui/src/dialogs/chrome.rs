@@ -1,20 +1,12 @@
-/// Translucent acrylic with softly diffused red and amber lighting.
+/// Opaque dialog surface with a restrained accent; document text never shows through.
 fn acrylic_surface(rect: egui::Rect, frame: egui::Frame, dark: bool) -> egui::Shape {
     use egui::epaint::RectShape;
     use egui::{Color32, Rect, Shape, pos2, vec2};
 
     let (base, amber, red) = if dark {
-        (
-            Color32::from_rgba_unmultiplied(43, 39, 32, 221),
-            Color32::from_rgba_unmultiplied(150, 110, 43, 108),
-            Color32::from_rgba_unmultiplied(124, 73, 74, 63),
-        )
+        (Color32::from_rgb(43, 39, 32), Color32::from_rgba_unmultiplied(150, 110, 43, 20), Color32::from_rgba_unmultiplied(124, 73, 74, 20))
     } else {
-        (
-            Color32::from_rgba_unmultiplied(252, 249, 239, 217),
-            Color32::from_rgba_unmultiplied(244, 202, 112, 108),
-            Color32::from_rgba_unmultiplied(231, 162, 157, 60),
-        )
+        (Color32::from_rgb(252, 249, 239), Color32::from_rgba_unmultiplied(244, 202, 112, 20), Color32::from_rgba_unmultiplied(231, 162, 157, 20))
     };
     let blur = (rect.height() * 0.24).clamp(8.0, 48.0);
     let glow = |x: f32, y: f32, color| {
@@ -252,7 +244,7 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
     };
     let id = egui::Id::unique(("dialog", title));
     let style = ctx.style_of(ctx.theme());
-    let frame = egui::Frame::window(&style);
+    let frame = egui::Frame::window(&style).corner_radius(12);
     let window = egui::Window::new(match title {
         "About Word AW" if crate::i18n::current().code() == "pt-br" => "Sobre o Word AW",
         _ => tl!(title),
@@ -354,4 +346,22 @@ pub(super) fn close_button(ui: &mut Ui) -> bool {
         close |= ui.add(crate::widgets::primary_button(ui, tl!("Close"))).clicked();
     });
     close
+}
+
+#[cfg(test)]
+mod aw_surface_tests {
+    #[test]
+    fn aw_dialog_surface_is_opaque_over_the_document() {
+        let bounds = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(400.0, 300.0));
+        for dark in [false, true] {
+            let shape = super::acrylic_surface(bounds, egui::Frame::NONE, dark);
+            let egui::Shape::Vec(shapes) = shape else {
+                panic!("dialog surface needs its background");
+            };
+            assert!(
+                shapes.iter().any(|shape| matches!(shape, egui::Shape::Rect(rect) if rect.rect == bounds && rect.fill.a() == 255)),
+                "text behind the dialog must be covered"
+            );
+        }
+    }
 }

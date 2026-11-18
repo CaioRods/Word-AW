@@ -1294,3 +1294,36 @@ fn rtl_template_titles_are_right_aligned() {
         wide_text_right,
     );
 }
+
+#[test]
+fn aw_sidebar_matches_excel_groups_and_keeps_account_options_at_bottom() {
+    let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    app.ui.language = "en".into();
+    app.run("ui.backstage", json!({"value":true,"page":"home"})).unwrap();
+    let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
+        |ui, app: &mut WordApp| {
+            let ctx = ui.ctx().clone();
+            app.logic(&ctx);
+            app.ui(ui);
+        },
+        app,
+    );
+    h.run_steps(4);
+    let item = |label| {
+        h.get_all_by_role_and_label(egui::accesskit::Role::Button, label)
+            .find(|node| node.rect().left() < aw_workspace::navigation::WIDTH)
+            .unwrap()
+            .rect()
+    };
+    let labels = ["Back", "Home", "New", "Open", "Info", "Save", "Save As", "Print", "Export", "Close", "Account", "Options"];
+    let rows: Vec<_> = labels.iter().map(|label| item(label)).collect();
+    for pair in rows.windows(2) {
+        assert!(pair[0].bottom() <= pair[1].top(), "sidebar rows must not overlap");
+    }
+    for row in &rows {
+        assert!((row.height() - 38.0).abs() < 0.1);
+        assert!((row.width() - 196.0).abs() < 0.1);
+    }
+    assert!(item("Account").top() > item("Close").bottom() + 100.0);
+    assert!(item("Options").bottom() > 860.0);
+}

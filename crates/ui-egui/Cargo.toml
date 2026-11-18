@@ -9,7 +9,7 @@ description = "WordCraft egui front end (Word-style ribbon UI); swappable: nothi
 workspace = true
 
 [dependencies]
-aw-workspace = { git = "https://github.com/CaioRods/Launcher-Wilson", rev = "4c806d864c8be46093a5a6dc7109ed6ecb3ec2b8" }
+aw-workspace = { git = "https://github.com/CaioRods/Launcher-Wilson", rev = "a72570b6cb2204e472b451e3d62ba55b35d3a0d2" }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "92d392cff132eaf53e13afff77f38b5c11b73aa0" }
 # Interface translations: lookup, fallback, plurals and system-locale matching over the craft-i18n
 # catalogs that `build.rs` embeds from `CRAFT_I18N_DIR` (storytold/craft-i18n, pinned in

@@ -1442,3 +1442,7 @@ MATH glyphs that reference the same construction now share its immutable variant
 Document tabs are always shown above the ribbon in the single-window AW mode. They can be reordered by dragging, created with +, and closed through the existing unsaved-changes confirmation. The account card and corner avatar use a local profile shared by Excel AW and Word AW under the same OS user (`%APPDATA%/AlimentosWilson/profile.json` on Windows). This shares the name, photo, banner and additional image; it does not synchronize documents or accounts over the internet.
 
 Word uses original AW artwork for its native window icon. The title uses one cached, truncated text layout rather than repeatedly measuring shorter strings on pointer frames. Wheel easing reaches 90% in 50 ms. Native Windows performance acceptance remains to be checked on the user’s PC.
+
+## Interface AW — 2026-11-18
+
+Alinhamento de abas e logos, cantos suaves, navegação compartilhada e diálogos opacos. Detalhes e limites em [Interface AW](docs/aw-design.md). Estimativas de paridade inalteradas.
