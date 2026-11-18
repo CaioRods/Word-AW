@@ -109,7 +109,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         .show(ui, |ui| {
             let rtl = crate::rtl::on();
             let rect = ui.clip_rect();
-            aw_workspace::navigation::background(ui, rect, t.dark);
+            aw_workspace::navigation::background_palette(ui, rect, t.dark, true);
             let direction = if rtl { 1.0 } else { -1.0 };
             let content = ui.max_rect().translate(vec2(direction * 96.0 * (1.0 - nav_progress), 0.0));
             ui.scope_builder(egui::UiBuilder::new().max_rect(content), |ui| {

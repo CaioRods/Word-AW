@@ -84,6 +84,8 @@ impl WordApp {
             alt_modifier_seen,
         } = window_ui::WindowUi::new(session.document_id());
         WordApp {
+            external_workspace: false,
+            window_controls: false,
             session,
             ui: UiState {
                 tab,
@@ -465,6 +467,9 @@ impl WordApp {
             backstage::forget_save_as_error(&ctx);
         }
         self.paint_window(ui, &ctx, t);
+        if self.window_controls && !self.external_workspace {
+            aw_workspace::window_frame::show(&ctx);
+        }
         if !moved(self) {
             self.show_overlays(ui, &ctx);
         }

@@ -160,6 +160,8 @@ impl WordApp {
     pub(crate) fn swap_window(&mut self, w: &mut WindowUi) {
         let WordApp {
             // App-wide.
+            external_workspace: _,
+            window_controls: _,
             session: _,
             services: _,
             printing: _,

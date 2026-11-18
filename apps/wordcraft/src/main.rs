@@ -72,41 +72,43 @@ impl eframe::App for App {
         }
         self.0.logic(ctx);
         self.3.show(frame);
-        let mut window = self.4;
-        // Only until the off-screen check below has run: it is the one reader.
-        if self.1.is_some() {
-            let (on_a_monitor, primary_monitor_rect) = monitor_geometry(frame, ctx.pixels_per_point());
-            window.on_a_monitor = on_a_monitor;
-            window.primary_monitor_rect = primary_monitor_rect;
-        }
-        // A window that doesn't fit on its screen (the default size on a laptop) shrinks to fit
-        // there, so all of the scroll bar can be dragged (#1215). Checked on the frame that first
-        // knows the monitor: the off-screen check below takes the pending geometry then.
-        if let Some((pos, size)) = self.1.and_then(|g| g.fit_on_monitor(&window)) {
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
-            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
-            let b = self.0.window_builder().clone().with_inner_size(size);
-            self.0.set_window_builder(b);
-        }
-        // The geometry saved for the next start is the active window's.
-        let prev = self.0.ui.window;
-        // Another document window's state is the one it last painted with: the host reports only
-        // the root window's for this frame.
-        let active = self.0.active_viewport();
-        let tracked = if active == egui::ViewportId::ROOT {
-            window
-        } else {
-            ctx.input_for(active, |i| RawWindowState::from_viewport(Some(i.viewport()), Some(i.viewport_rect())))
-        };
-        self.0.ui.window = WindowGeometry::track(prev, &tracked);
-        // The first frame, once the monitor is known (as `take_rescue` waits for): maximize a
-        // window that opened at its normal size so it never flashed on screen half-opened.
-        let maximize = self.1.and_then(|g| g.maximize_after_open()).filter(|_| window.monitor_size.is_some());
-        if let Some(pos) = take_rescue(&mut self.1, &window) {
-            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
-        }
-        if let Some(command) = maximize {
-            ctx.send_viewport_cmd(command);
+        if !self.0.external_workspace {
+            let mut window = self.4;
+            // Only until the off-screen check below has run: it is the one reader.
+            if self.1.is_some() {
+                let (on_a_monitor, primary_monitor_rect) = monitor_geometry(frame, ctx.pixels_per_point());
+                window.on_a_monitor = on_a_monitor;
+                window.primary_monitor_rect = primary_monitor_rect;
+            }
+            // A window that doesn't fit on its screen (the default size on a laptop) shrinks to fit
+            // there, so all of the scroll bar can be dragged (#1215). Checked on the frame that first
+            // knows the monitor: the off-screen check below takes the pending geometry then.
+            if let Some((pos, size)) = self.1.and_then(|g| g.fit_on_monitor(&window)) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+                let b = self.0.window_builder().clone().with_inner_size(size);
+                self.0.set_window_builder(b);
+            }
+            // The geometry saved for the next start is the active window's.
+            let prev = self.0.ui.window;
+            // Another document window's state is the one it last painted with: the host reports only
+            // the root window's for this frame.
+            let active = self.0.active_viewport();
+            let tracked = if active == egui::ViewportId::ROOT {
+                window
+            } else {
+                ctx.input_for(active, |i| RawWindowState::from_viewport(Some(i.viewport()), Some(i.viewport_rect())))
+            };
+            self.0.ui.window = WindowGeometry::track(prev, &tracked);
+            // The first frame, once the monitor is known (as `take_rescue` waits for): maximize a
+            // window that opened at its normal size so it never flashed on screen half-opened.
+            let maximize = self.1.and_then(|g| g.maximize_after_open()).filter(|_| window.monitor_size.is_some());
+            if let Some(pos) = take_rescue(&mut self.1, &window) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+            }
+            if let Some(command) = maximize {
+                ctx.send_viewport_cmd(command);
+            }
         }
         // The window's close button: with other windows open only this window closes (the app
         // handles that while drawing it); the last one quits, asking first about unsaved changes
@@ -554,7 +556,16 @@ fn main() -> eframe::Result {
         std::process::exit(2);
     }
     #[cfg(windows)]
-    let requests = if prefs_enabled() && control_port.is_none() && !sample {
+    if control_port.is_none()
+        && !sample
+        && !aw_workspace::control::embedded()
+        && !files.is_empty()
+        && aw_workspace::control::forward(1, &files.iter().map(std::path::PathBuf::from).chain(other_files.iter().cloned()).collect::<Vec<_>>())
+    {
+        return Ok(());
+    }
+    #[cfg(windows)]
+    let requests = if !aw_workspace::control::embedded() && prefs_enabled() && control_port.is_none() && !sample {
         let paths = files.iter().map(std::path::PathBuf::from).chain(other_files.iter().cloned()).collect::<Vec<_>>();
         match open_requests::OpenRequests::start("Word AW", &paths) {
             Ok(Some(requests)) => Some(requests),
@@ -590,6 +601,8 @@ fn main() -> eframe::Result {
             .with_min_inner_size([760.0, 480.0])
             .with_drag_and_drop(true)
             .with_fullsize_content_view(true)
+            .with_decorations(!cfg!(windows) || std::env::var_os("WORDCRAFT_SYSTEM_TITLEBAR").is_some())
+            .with_visible(!aw_workspace::control::embedded())
             .with_titlebar_shown(false)
             .with_title_shown(false),
         ..Default::default()
@@ -679,6 +692,7 @@ fn main() -> eframe::Result {
                 log::info!("title bar: {bar:?}");
                 app.mac_titlebar = bar;
             }
+            app.window_controls = cfg!(windows) && !aw_workspace::control::embedded() && std::env::var_os("WORDCRAFT_SYSTEM_TITLEBAR").is_none();
             let mut key_file = None;
             if let Some(port) = control_port
                 && let Some((rx, file)) = control_server::start(port, cc.egui_ctx.clone(), wordcraft_control_key::settings_dir().as_deref())
@@ -700,6 +714,15 @@ fn main() -> eframe::Result {
             }
             for f in other_files {
                 open_non_unicode(&mut app, &f);
+            }
+            if let Some((command, params)) = aw_workspace::control::startup()
+                && let Err(error) = app.run(&command, params)
+            {
+                app.status(error);
+            }
+            app.external_workspace = aw_workspace::control::embedded();
+            if app.external_workspace {
+                app.ui.backstage = false;
             }
             Ok(Box::new(App(
                 app,

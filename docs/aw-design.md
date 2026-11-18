@@ -11,3 +11,6 @@ As janelas de diálogo têm fundo opaco, para os textos da tela anterior não at
 A janela Sobre do Word ajusta a altura ao conteúdo e mantém Fechar em uma linha compacta; o ícone de Opções vem do mesmo catálogo vetorial usado nas demais entradas.
 
 Em janelas menores, os comandos do menu podem rolar; Conta e Opções permanecem separados na base, sem sobreposição com os comandos.
+
+AWcontrol hospeda cada editor nativo em uma página própria no Windows. A faixa interna é omitida somente nesse modo; novos arquivos e modelos são encaminhados à central autenticada local. Sem a central, os apps continuam independentes. O fechamento é solicitado ao editor, que mantém os avisos de salvar/cancelar.
+O Word usa o cabeçalho integrado com controles nativos desenhados e restaura o amarelo/dourado principal com vermelho secundário no menu.

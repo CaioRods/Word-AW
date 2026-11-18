@@ -28,6 +28,16 @@ impl WordApp {
     /// Close, Envelopes, Labels and Finish & Merge on a document with unsaved changes first ask
     /// Save / Don't Save / Cancel, and the command runs once that is answered (`ui.saveChanges`).
     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
+        if self.external_workspace && id == "file.close" {
+            let closing = self.quit();
+            return Ok(json!({"closing":closing}));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.external_workspace
+            && let Some(result) = aw_workspace::control::route(1, id, &params)
+        {
+            return result;
+        }
         // Comment text still being typed is written first, so a save or export has it and a
         // close, New or Open counts it as a change (#1348). A draft the document refuses is not
         // part of it: saving and exporting go on without it (the refusal stays on the status

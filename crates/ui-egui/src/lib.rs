@@ -623,6 +623,9 @@ fn migrate_units(v: &mut Value) {
 
 /// The application.
 pub struct WordApp {
+    /// The enclosing AWcontrol owns document tabs and the native frame.
+    pub external_workspace: bool,
+    pub window_controls: bool,
     pub session: Session,
     pub ui: UiState,
     pub services: Services,
