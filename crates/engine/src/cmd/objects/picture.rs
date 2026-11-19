@@ -242,7 +242,7 @@ pub(super) fn grown(w: u32, h: u32, pad: u32) -> Option<(u32, u32)> {
 /// from that bitmap instead of over the last result. Picking a second style replaces the first,
 /// as in Word, instead of framing the frame (#2052). Kept in [`Session::picture_looks`] under the
 /// media key of the drawn bitmap.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct PictureLook {
     /// The media key of the bitmap before any of them.
     pub base: String,

@@ -11,6 +11,7 @@ description = "WordCraft desktop app"
 workspace = true
 
 [dependencies]
+aw-workspace = { git = "https://github.com/CaioRods/Launcher-Wilson", rev = "9562992904e080f02a8954c9c7cc9c5c040950e0" }
 wordcraft-doc = { workspace = true }
 wordcraft-engine = { workspace = true }
 wordcraft-proof = { workspace = true }
@@ -99,3 +100,5 @@ getrandom = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 craft-update = { workspace = true }
+# Expose the same winit already used by eframe, for safe taskbar/corner APIs.
+winit = { version = "0.30", default-features = false }

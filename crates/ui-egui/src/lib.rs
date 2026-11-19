@@ -62,7 +62,7 @@ pub mod paste_picture;
 pub mod previews;
 pub mod print_page;
 pub mod printing;
-mod profile;
+pub use aw_workspace::profile;
 pub mod proofing_pane;
 pub mod read_aloud;
 pub mod ribbon;
@@ -108,6 +108,7 @@ pub use file_dialogs::{FileDialogAnswer, FileDialogRequest, open_filters};
 
 mod app;
 mod clock;
+use aw_workspace::document_strip;
 mod services;
 mod state;
 
@@ -622,6 +623,11 @@ fn migrate_units(v: &mut Value) {
 
 /// The application.
 pub struct WordApp {
+    /// The enclosing AWcontrol owns document tabs and the native frame.
+    pub external_workspace: bool,
+    pub(crate) workspace_transfer: Option<String>,
+    pub(crate) workspace_transfer_at: f64,
+    pub window_controls: bool,
     pub session: Session,
     pub ui: UiState,
     pub services: Services,

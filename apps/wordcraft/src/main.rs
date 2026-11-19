@@ -21,12 +21,13 @@ mod file_dialogs;
 #[cfg(any(target_os = "windows", target_os = "macos", test))]
 mod graphics;
 mod logging;
-mod print;
 #[cfg(windows)]
 mod open_requests;
+mod print;
 mod region;
 #[cfg(target_os = "macos")]
 mod traffic_lights;
+mod workspace_session;
 
 use wordcraft_engine::Session;
 use wordcraft_ui_egui::{
@@ -71,42 +72,58 @@ impl eframe::App for App {
             });
         }
         self.0.logic(ctx);
+        #[cfg(windows)]
+        if let Some(window) = frame.winit_window() {
+            use winit::platform::windows::{CornerPreference, WindowExtWindows};
+            let key = egui::Id::unique("aw_native_window_mode");
+            if ctx.data(|d| d.get_temp::<bool>(key)) != Some(self.0.external_workspace) {
+                if ctx.data(|d| d.get_temp::<bool>(key)) == Some(true) && !self.0.external_workspace {
+                    self.1 = None;
+                }
+                window.set_skip_taskbar(self.0.external_workspace);
+                window.set_corner_preference(if self.0.external_workspace { CornerPreference::DoNotRound } else { CornerPreference::Round });
+                ctx.data_mut(|d| d.insert_temp(key, self.0.external_workspace));
+            }
+        }
+
         self.3.show(frame);
-        let mut window = self.4;
-        // Only until the off-screen check below has run: it is the one reader.
-        if self.1.is_some() {
-            let (on_a_monitor, primary_monitor_rect) = monitor_geometry(frame, ctx.pixels_per_point());
-            window.on_a_monitor = on_a_monitor;
-            window.primary_monitor_rect = primary_monitor_rect;
-        }
-        // A window that doesn't fit on its screen (the default size on a laptop) shrinks to fit
-        // there, so all of the scroll bar can be dragged (#1215). Checked on the frame that first
-        // knows the monitor: the off-screen check below takes the pending geometry then.
-        if let Some((pos, size)) = self.1.and_then(|g| g.fit_on_monitor(&window)) {
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
-            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
-            let b = self.0.window_builder().clone().with_inner_size(size);
-            self.0.set_window_builder(b);
-        }
-        // The geometry saved for the next start is the active window's.
-        let prev = self.0.ui.window;
-        // Another document window's state is the one it last painted with: the host reports only
-        // the root window's for this frame.
-        let active = self.0.active_viewport();
-        let tracked = if active == egui::ViewportId::ROOT {
-            window
-        } else {
-            ctx.input_for(active, |i| RawWindowState::from_viewport(Some(i.viewport()), Some(i.viewport_rect())))
-        };
-        self.0.ui.window = WindowGeometry::track(prev, &tracked);
-        // The first frame, once the monitor is known (as `take_rescue` waits for): maximize a
-        // window that opened at its normal size so it never flashed on screen half-opened.
-        let maximize = self.1.and_then(|g| g.maximize_after_open()).filter(|_| window.monitor_size.is_some());
-        if let Some(pos) = take_rescue(&mut self.1, &window) {
-            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
-        }
-        if let Some(command) = maximize {
-            ctx.send_viewport_cmd(command);
+        if !self.0.external_workspace {
+            let mut window = self.4;
+            // Only until the off-screen check below has run: it is the one reader.
+            if self.1.is_some() {
+                let (on_a_monitor, primary_monitor_rect) = monitor_geometry(frame, ctx.pixels_per_point());
+                window.on_a_monitor = on_a_monitor;
+                window.primary_monitor_rect = primary_monitor_rect;
+            }
+            // A window that doesn't fit on its screen (the default size on a laptop) shrinks to fit
+            // there, so all of the scroll bar can be dragged (#1215). Checked on the frame that first
+            // knows the monitor: the off-screen check below takes the pending geometry then.
+            if let Some((pos, size)) = self.1.and_then(|g| g.fit_on_monitor(&window)) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+                let b = self.0.window_builder().clone().with_inner_size(size);
+                self.0.set_window_builder(b);
+            }
+            // The geometry saved for the next start is the active window's.
+            let prev = self.0.ui.window;
+            // Another document window's state is the one it last painted with: the host reports only
+            // the root window's for this frame.
+            let active = self.0.active_viewport();
+            let tracked = if active == egui::ViewportId::ROOT {
+                window
+            } else {
+                ctx.input_for(active, |i| RawWindowState::from_viewport(Some(i.viewport()), Some(i.viewport_rect())))
+            };
+            self.0.ui.window = WindowGeometry::track(prev, &tracked);
+            // The first frame, once the monitor is known (as `take_rescue` waits for): maximize a
+            // window that opened at its normal size so it never flashed on screen half-opened.
+            let maximize = self.1.and_then(|g| g.maximize_after_open()).filter(|_| window.monitor_size.is_some());
+            if let Some(pos) = take_rescue(&mut self.1, &window) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(pos));
+            }
+            if let Some(command) = maximize {
+                ctx.send_viewport_cmd(command);
+            }
         }
         // The window's close button: with other windows open only this window closes (the app
         // handles that while drawing it); the last one quits, asking first about unsaved changes
@@ -358,6 +375,7 @@ fn try_save_prefs(app: &WordApp) -> Result<bool, String> {
     if !prefs_enabled() {
         return Ok(false);
     }
+    app.ui.profile.flush_shared()?;
     let Some(p) = prefs_path() else { return Ok(false) };
     if let Some(dir) = p.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
@@ -406,11 +424,8 @@ fn services(file_dialog: file_dialogs::Hook, ctx: &egui::Context) -> Services {
 
 /// Window, Dock and taskbar icon.
 fn app_icon() -> Option<egui::IconData> {
-    #[cfg(target_os = "macos")]
-    let png: &[u8] = include_bytes!("../../../assets/app-icon/wordcraft-macos-512.png");
-    #[cfg(not(target_os = "macos"))]
-    let png: &[u8] = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/ai.storyteller.wordcraft.png");
-    eframe::icon_data::from_png_bytes(png).map_err(|e| log::warn!("app icon: {e}")).ok()
+    let png = include_bytes!("../../../assets/app-icon/wordcraft-macos-512.png");
+    eframe::icon_data::from_png_bytes(png).ok()
 }
 
 const USAGE: &str = "\
@@ -556,7 +571,16 @@ fn main() -> eframe::Result {
         std::process::exit(2);
     }
     #[cfg(windows)]
-    let requests = if prefs_enabled() && control_port.is_none() && !sample {
+    if control_port.is_none()
+        && !sample
+        && !aw_workspace::control::embedded()
+        && !files.is_empty()
+        && aw_workspace::control::forward(1, &files.iter().map(std::path::PathBuf::from).chain(other_files.iter().cloned()).collect::<Vec<_>>())
+    {
+        return Ok(());
+    }
+    #[cfg(windows)]
+    let requests = if !aw_workspace::control::embedded() && prefs_enabled() && control_port.is_none() && !sample {
         let paths = files.iter().map(std::path::PathBuf::from).chain(other_files.iter().cloned()).collect::<Vec<_>>();
         match open_requests::OpenRequests::start("Word AW", &paths) {
             Ok(Some(requests)) => Some(requests),
@@ -589,9 +613,12 @@ fn main() -> eframe::Result {
             .with_title("Word AW")
             .with_app_id("ai.storyteller.wordcraft")
             .with_inner_size([1440.0, 920.0])
-            .with_min_inner_size([760.0, 480.0])
+            .with_min_inner_size(wordcraft_ui_egui::window_geometry::MIN_SIZE)
             .with_drag_and_drop(true)
             .with_fullsize_content_view(true)
+            .with_decorations(!cfg!(windows) || std::env::var_os("WORDCRAFT_SYSTEM_TITLEBAR").is_some())
+            .with_visible(!aw_workspace::control::embedded())
+            .with_taskbar(!aw_workspace::control::embedded())
             .with_titlebar_shown(false)
             .with_title_shown(false),
         ..Default::default()
@@ -613,7 +640,9 @@ fn main() -> eframe::Result {
     let window_builder = options.viewport.clone();
     let saved = saved_ui();
     let restored = saved.as_ref().and_then(|ui| ui.window?.sanitized());
-    if let Some(window) = restored {
+    if !aw_workspace::control::embedded()
+        && let Some(window) = restored
+    {
         options.viewport = window.apply(options.viewport);
     }
     #[cfg(all(unix, not(target_os = "macos")))]
@@ -647,6 +676,9 @@ fn main() -> eframe::Result {
             let mut app = WordApp::new(session, services(file_dialog, &cc.egui_ctx));
             app.set_startup_update_check(true);
             load_prefs(&mut app);
+            if prefs_enabled() {
+                app.ui.profile.enable_sharing();
+            }
             // After the preferences, so the reason it gives is in the interface language.
             if updates_unsafe {
                 app.disable_self_update();
@@ -678,8 +710,9 @@ fn main() -> eframe::Result {
                 log::info!("title bar: {bar:?}");
                 app.mac_titlebar = bar;
             }
+            app.window_controls = cfg!(windows) && !aw_workspace::control::embedded() && std::env::var_os("WORDCRAFT_SYSTEM_TITLEBAR").is_none();
             let mut key_file = None;
-            if let Some(port) = control_port
+            if let Some(port) = control_port.or(if cfg!(windows) { Some(0) } else { None })
                 && let Some((rx, file)) = control_server::start(port, cc.egui_ctx.clone(), wordcraft_control_key::settings_dir().as_deref())
             {
                 app = app.with_control(rx);
@@ -688,7 +721,8 @@ fn main() -> eframe::Result {
             // Nothing to open (no files, no sample, no control channel driving the editor): start
             // on File › Home, as Word does (#766), unless the Start screen option is off. Files
             // macOS hands over later open on top of it and close it (`apple_events`).
-            if files.is_empty() && other_files.is_empty() && !sample && control_port.is_none() {
+            // AWcontrol already provides Home; a hosted blank page must be an editable document.
+            if !aw_workspace::control::embedded() && files.is_empty() && other_files.is_empty() && !sample && control_port.is_none() {
                 app.start_screen();
             }
             // A Word template named here starts a new document based on it (#3433).
@@ -700,6 +734,15 @@ fn main() -> eframe::Result {
             for f in other_files {
                 open_non_unicode(&mut app, &f);
             }
+            if let Some((command, params)) = aw_workspace::control::startup()
+                && let Err(error) = app.run(&command, params)
+            {
+                app.status(error);
+            }
+            app.external_workspace = aw_workspace::control::embedded();
+            if app.external_workspace {
+                app.ui.backstage = false;
+            }
             Ok(Box::new(App(
                 app,
                 // With nothing restored, the window the system placed is checked all the same.
@@ -709,8 +752,8 @@ fn main() -> eframe::Result {
                 RawWindowState::default(),
                 #[cfg(target_os = "macos")]
                 apple_events.connect(&cc.egui_ctx),
-                    #[cfg(windows)]
-                    requests,
+                #[cfg(windows)]
+                requests,
             )))
         }),
     )

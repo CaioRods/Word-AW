@@ -254,30 +254,49 @@ pub(crate) fn untitled_title(english: &str) -> Option<String> {
 
 /// The documents open in this window, with a dot for unsaved changes.
 pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
-    if app.windows.native() {
+    if app.windows.native() || (app.external_workspace && app.session.documents().len() <= 1) {
         return;
     }
     let docs = app.session.documents();
-    if docs.len() < 2 {
-        return;
-    }
-
+    let entries: Vec<_> = docs
+        .iter()
+        .filter(|_| app.has_document())
+        .map(|d| (d.id, format!("{}{}", if d.dirty { "● " } else { "" }, display_title(d)), d.active))
+        .collect();
     let t = crate::theme::Tokens::get(ui.ctx());
-    egui::Panel::top("document_tabs").frame(egui::Frame::NONE.fill(t.canvas).inner_margin(egui::Margin::symmetric(8, 4))).show(ui, |ui| {
-        egui::ScrollArea::horizontal().id_salt("document_tab_scroll").auto_shrink([false, true]).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                for doc in docs {
-                    let label = format!("{}{}", if doc.dirty { "● " } else { "" }, display_title(&doc));
-                    let response = ui.push_id(doc.id, |ui| {
-                        ui.add(egui::Button::selectable(doc.active, &label).min_size(egui::vec2(70.0, 25.0))).on_hover_text(&label)
-                    }).inner;
-                    if !doc.active && response.clicked() {
-                        let _ = app.run("view.switchWindows", json!({"id": doc.id}));
-                    }
-                }
-            });
-        });
+    let style = crate::document_strip::Style {
+        brand: "Word AW",
+        movable: !app.external_workspace,
+        accent: t.accent,
+        active: t.ribbon,
+        text: t.text,
+        on_accent: t.on_accent,
+        trailing_width: 44.0 + if app.window_controls { aw_workspace::window_frame::RESERVED } else { 0.0 },
+        logo: crate::document_strip::logo(ui.ctx(), "Word AW", include_bytes!("../../../assets/app-icon/wordcraft-macos-512.png")),
+    };
+    let action = crate::document_strip::show_with_style(ui, &entries, style, crate::i18n::current().code() == "pt-br", |ui| {
+        if app.window_controls {
+            ui.add_space(aw_workspace::window_frame::RESERVED);
+        }
+        crate::chrome::account_button(app, ui, 26.0)
     });
+    match action {
+        Some(crate::document_strip::Action::Select(id)) => {
+            app.ui.backstage = false;
+            let _ = app.run("view.switchWindows", json!({"id": id}));
+        }
+        // The interactive close path asks about unsaved edits.
+        Some(crate::document_strip::Action::Close(id)) if app.run("view.switchWindows", json!({"id": id})).is_ok() => {
+            let _ = app.run("file.close", json!({}));
+        }
+        Some(crate::document_strip::Action::New) => {
+            let _ = app.run("file.new", json!({}));
+        }
+        Some(crate::document_strip::Action::Home) => {
+            let _ = app.run("ui.backstage", json!({"value": true, "page": "home"}));
+        }
+        _ => {}
+    }
 }
 
 /// View › Window › Switch Windows: the open windows (in one window, the open documents) in the
@@ -311,7 +330,9 @@ mod tests {
     use crate::{Services, WordApp};
 
     fn app() -> WordApp {
-        WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default())
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
+        app.ui.language = "en".into();
+        app
     }
 
     fn harness(a: WordApp) -> egui_kittest::Harness<'static, WordApp> {
@@ -478,5 +499,61 @@ mod tests {
         assert_eq!(titles(&a), ["Document1"]);
         a.run("file.new", json!({})).unwrap();
         assert_eq!(titles(&a), ["Document1", "Document2"]);
+    }
+}
+
+#[cfg(test)]
+mod aw_host_tests {
+    use egui_kittest::kittest::Queryable;
+    fn harness(embedded: bool) -> egui_kittest::Harness<'static, crate::WordApp> {
+        let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.use_document_tabs();
+        app.external_workspace = embedded;
+        app.window_controls = !embedded;
+        app.ui.language = "en".into();
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 800.0)).build_ui_state(
+            |ui, app: &mut crate::WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            app,
+        );
+        h.run_steps(8);
+        h
+    }
+    #[cfg(unix)]
+    #[test]
+    fn workspace_state_handles_non_unicode_file_names() {
+        use std::os::unix::ffi::OsStringExt;
+        let mut h = harness(true);
+        h.state_mut().session.path = Some(std::path::PathBuf::from(std::ffi::OsString::from_vec(vec![b'a', 255, b'.', b'd', b'o', b'c', b'x'])));
+        let state = h.state_mut().execute("ui.workspace.action", serde_json::json!({"action":"state"})).unwrap();
+        assert!(state["path"].is_string());
+    }
+    #[test]
+    fn detach_preserves_the_document_and_enables_standalone_window_mode() {
+        let mut h = harness(true);
+        let id = h.state().session.document_id();
+        h.state_mut().execute("ui.workspace.action", serde_json::json!({"action":"detach"})).unwrap();
+        assert!(!h.state().external_workspace);
+        assert_eq!(id, h.state().session.document_id());
+        assert!(h.state_mut().execute("ui.workspace.action", serde_json::json!({"action":"shell"})).is_err());
+    }
+    #[test]
+    fn integrated_word_header_reserves_window_controls_beside_the_avatar() {
+        let h = harness(false);
+        let minimize = h.get_by_label("Minimizar").rect();
+        let maximize = h.get_by_label("Maximizar").rect();
+        let close = h.get_by_label("Fechar janela").rect();
+        assert!(minimize.top() < 40.0 && maximize.left() >= minimize.right() && close.left() >= maximize.right());
+        let account = h.get_all_by_label("Account").find(|n| n.rect().top() < 40.0).unwrap().rect();
+        assert!(account.right() <= minimize.left(), "avatar and native buttons must not overlap");
+    }
+    #[test]
+    fn hosted_word_omits_its_own_document_strip_and_window_buttons() {
+        let h = harness(true);
+        assert!(h.query_by_label("Word AW").is_none());
+        assert!(h.query_by_label("Minimizar").is_none());
     }
 }

@@ -16,11 +16,11 @@ use crate::Paragraph;
 pub const MAX_KEPT_BYTES: usize = 64 * 1024 * 1024;
 
 /// The kept markup of a document (see the module docs).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Kept(Option<Arc<KeptXml>>);
 
 /// What a reader kept.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct KeptXml {
     /// The format it came from (`"odt"`): only that format's writer uses it.
     pub format: String,

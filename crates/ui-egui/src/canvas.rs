@@ -782,6 +782,10 @@ fn configure_scroll_area(app: &mut WordApp, ui: &Ui, view: &CanvasView, motion: 
         }
         scroll_area = scroll_area.scroll_offset(after);
     }
+    if let Some(offset) = ui.ctx().data_mut(|d| d.remove_temp::<egui::Vec2>(egui::Id::unique("aw_import_scroll"))) {
+        scroll_area = scroll_area.scroll_offset(offset);
+        app.canvas.scroll_to_caret = false;
+    }
     if app.canvas.wheel.is_animating() {
         ui.ctx().request_repaint();
     }

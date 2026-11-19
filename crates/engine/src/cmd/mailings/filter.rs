@@ -3,7 +3,7 @@ use super::recipients::cell;
 use super::{CmdError, CmdResult, MergeState, Session, Value, json, p};
 
 /// A Filter Recipients comparison.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FilterOp {
     Equal,
     NotEqual,
@@ -90,7 +90,7 @@ impl FilterOp {
 
 /// One Filter Recipients row: `field op value`, joined to the row before by And (`or` false) or
 /// Or. And binds tighter than Or: `a And b Or c` keeps records matching both a and b, or c.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FilterRule {
     pub field: String,
     pub op: FilterOp,
@@ -99,7 +99,7 @@ pub struct FilterRule {
 }
 
 /// One Sort Recipients key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SortKey {
     pub field: String,
     pub descending: bool,

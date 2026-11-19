@@ -69,7 +69,7 @@ pub struct MissingPicture {
 
 /// A capped list of [`MissingPicture`]s, with the source names a report needs to say where a
 /// picture is (a reader fills them; a document made or opened another way leaves them empty).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MissingPictures {
     pub list: Vec<MissingPicture>,
     /// More than [`MAX_MISSING_PICTURES`] were found; the rest are not listed.

@@ -63,6 +63,9 @@ impl RawWindowState {
 }
 
 /// The smallest window restored: the desktop app's minimum inner size.
+#[cfg(windows)]
+pub const MIN_SIZE: egui::Vec2 = egui::vec2(640.0, 420.0);
+#[cfg(not(windows))]
 pub const MIN_SIZE: egui::Vec2 = egui::vec2(760.0, 480.0);
 /// Larger saved sizes are corrupt. eframe also shrinks the start size to the largest monitor.
 const MAX_SIZE: egui::Vec2 = egui::vec2(16384.0, 16384.0);

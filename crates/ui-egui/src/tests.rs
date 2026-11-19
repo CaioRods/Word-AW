@@ -585,9 +585,8 @@ fn title_and_account_buttons_work() {
     h.get_by_label("Account").click();
     h.run_steps(2);
     assert!(h.state().ui.backstage);
-    assert_eq!(h.state().ui.backstage_page, "options");
-    assert_eq!(h.state().ui.options_pane, "general");
-    assert!(h.query_by_label("User name:").is_some());
+    assert_eq!(h.state().ui.backstage_page, "account");
+    assert!(h.query_by_label("My profile").is_some());
 }
 
 #[test]

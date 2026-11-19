@@ -84,6 +84,10 @@ impl WordApp {
             alt_modifier_seen,
         } = window_ui::WindowUi::new(session.document_id());
         WordApp {
+            external_workspace: false,
+            workspace_transfer: None,
+            workspace_transfer_at: 0.0,
+            window_controls: false,
             session,
             ui: UiState {
                 tab,
@@ -231,6 +235,14 @@ impl WordApp {
 
     /// Per-frame logic before layout: control requests, screenshots, shortcuts, file drops.
     pub fn logic(&mut self, ctx: &egui::Context) {
+        if self.workspace_transfer.is_some() {
+            if now_ms() - self.workspace_transfer_at > 60000.0 {
+                self.workspace_transfer = None;
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_secs(1));
+            }
+        }
+
         // #2726: egui's AccessKit update must carry the focused node in its node list; a frame
         // that drops it panics in `accesskit_consumer` and closes the window (see `a11y::FocusGuard`).
         ctx.add_plugin(super::a11y::FocusGuard);
@@ -254,6 +266,13 @@ impl WordApp {
             self.session.set_editing_language(editing.as_deref());
             self.applied_editing = Some((lang, editing));
         }
+        if self.ui.profile.sync() {
+            self.session.author.clone_from(&self.ui.profile.name);
+        } else if self.session.author != self.ui.profile.name {
+            // A name edited in Options participates in the same shared profile.
+            self.ui.profile.name = self.session.author.chars().take(100).collect();
+        }
+        ctx.request_repaint_after(std::time::Duration::from_secs(1));
         options::sync(self);
         self.settle_async_saves();
         // Chinese text wants the Chinese face before the Japanese one (one glyph style per line).
@@ -424,6 +443,9 @@ impl WordApp {
     /// Switch Windows) ends this window's drawing for the frame: the rest would be the other
     /// window's.
     pub(crate) fn window_ui(&mut self, ui: &mut egui::Ui) {
+        if self.workspace_transfer.is_some() {
+            ui.disable();
+        }
         let window = self.windows.shown();
         let moved = |app: &WordApp| app.windows.shown() != window;
         let t0 = now_ms();
@@ -458,6 +480,9 @@ impl WordApp {
             backstage::forget_save_as_error(&ctx);
         }
         self.paint_window(ui, &ctx, t);
+        if self.window_controls && !self.external_workspace {
+            aw_workspace::window_frame::show(&ctx);
+        }
         if !moved(self) {
             self.show_overlays(ui, &ctx);
         }

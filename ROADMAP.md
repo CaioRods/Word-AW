@@ -1,6 +1,12 @@
 # WordCraft roadmap
 
-> **Last reviewed:** 2026-10-31 · **Last updated:** 2026-10-31 · **Change:** minor (#3398: persistent screen paper colors; parity estimates unchanged); previously minor (#3693: additional Delete Previous Sentence command and shortcut; Word-parity estimates unchanged)
+> Selected-tab transfer · 2026-11-19: checkpoints retain the selected document, undo/redo, selection and view; acknowledged import precedes source removal, while other source tabs remain open. The last document still uses live-window docking. Readiness estimates are unchanged.
+
+> AWcontrol models/docking update · 2026-11-19: original pt-BR business templates, authenticated discovery of standalone Windows editors, visible resize cursors and guarded hosted tabs. Live return is handled by the central; no document serialization is used. Readiness estimates are unchanged.
+
+> AWcontrol branch update · 2026-11-19: Word AW keeps its hosted header fixed, supports live detachment and explicit file actions, and uses native Windows taskbar/corner APIs. Core parity/readiness estimates are unchanged.
+
+> **Last reviewed:** 2026-10-31 · **Last updated:** 2026-11-17 · **Change:** minor (#3398: persistent screen paper colors; parity estimates unchanged); previously minor (#3693: additional Delete Previous Sentence command and shortcut; Word-parity estimates unchanged)
 > **CLI path update:** 2026-11-04 · Options before a non-Unicode input filename no longer make the CLI reject that filename; text option values still require Unicode; `run --file` and `run --script` retain native paths. No ranked gap or readiness estimate changes.
 > **Floating anchor row segments:** 2026-11-07 · A floating anchor after a manual page/column break counts visible content on the far side of the same wrapped row. Marker-only cover anchors retain their previous-page rule. Synthetic picture spacing, placement and history controls; no new native Word measurement. Readiness estimates unchanged.
 
@@ -1435,3 +1441,14 @@ MATH glyphs that reference the same construction now share its immutable variant
 
 > 2026-10-29 · Port #2437 to split layout modules: finite border extents and terminal-break keep preflight. Recursive keep lookahead remains outside scope. Source port only; no test execution or new native measurements.
 | 2026-11-03 | trivial | Progress log: a line breaks after a hyphen before a slash (#3408) |
+
+
+## AW workspace — 2026-11-17
+
+Document tabs are always shown above the ribbon in the single-window AW mode. They can be reordered by dragging, created with +, and closed through the existing unsaved-changes confirmation. The account card and corner avatar use a local profile shared by Excel AW and Word AW under the same OS user (`%APPDATA%/AlimentosWilson/profile.json` on Windows). This shares the name, photo, banner and additional image; it does not synchronize documents or accounts over the internet.
+
+Word uses original AW artwork for its native window icon. The title uses one cached, truncated text layout rather than repeatedly measuring shorter strings on pointer frames. Wheel easing reaches 90% in 50 ms. Native Windows performance acceptance remains to be checked on the user’s PC.
+
+## Interface AW — 2026-11-18
+
+Alinhamento de abas e logos, cantos suaves, navegação compartilhada e diálogos opacos. Detalhes e limites em [Interface AW](docs/aw-design.md). Estimativas de paridade inalteradas.

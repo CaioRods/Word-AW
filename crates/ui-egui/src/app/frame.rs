@@ -65,6 +65,9 @@ impl WordApp {
 
     /// Draw the File page, the empty-window chrome, or the normal document window.
     pub(super) fn paint_window(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, t: theme::Tokens) {
+        if self.ui.backstage || chrome::Screen::of(&self.session.view) == chrome::Screen::Normal {
+            crate::documents::document_tabs(ui, self);
+        }
         let window = self.windows.shown();
         let moved = |app: &WordApp| app.windows.shown() != window;
         if !self.ui.backstage {
@@ -93,7 +96,6 @@ impl WordApp {
                 if moved(self) {
                     return;
                 }
-                crate::documents::document_tabs(ui, self);
                 crate::language_packs::bar(self, ui);
                 chrome::status_bar(self, ui);
                 panes::show(self, ui);

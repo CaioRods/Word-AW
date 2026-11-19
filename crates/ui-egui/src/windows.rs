@@ -115,7 +115,7 @@ impl Windows {
             recent: vec![1],
             focus: None,
             menu: WindowMenu::default(),
-            builder: egui::ViewportBuilder::default().with_inner_size([1440.0, 920.0]).with_min_inner_size([760.0, 480.0]),
+            builder: egui::ViewportBuilder::default().with_inner_size([1440.0, 920.0]).with_min_inner_size(crate::window_geometry::MIN_SIZE),
             input_plugin: false,
             driven: false,
             arranged: arrange::State::default(),
@@ -344,6 +344,9 @@ impl WordApp {
     /// its window, as [`WordApp::close_requested`] does. True when the app may quit now; the
     /// host closes it once `quit_requested` is set.
     pub fn quit(&mut self) -> bool {
+        if self.workspace_transfer.is_some() {
+            return false;
+        }
         let go = self.close_requested();
         if go {
             self.quit_requested = true;

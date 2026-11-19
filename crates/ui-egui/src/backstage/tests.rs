@@ -1038,6 +1038,7 @@ fn backstage_save_closes_when_saved() {
 #[test]
 fn backstage_close_asks_then_closes() {
     let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    a.ui.language = "en".into();
     a.run("text.insert", json!({"text": "Draft"})).unwrap();
     a.run("ui.backstage", json!({"value": true, "page": "info"})).unwrap();
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
@@ -1071,6 +1072,7 @@ fn backstage_close_asks_then_closes() {
 #[test]
 fn backstage_close_on_a_clean_document_closes_at_once() {
     let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    a.ui.language = "en".into();
     a.run("ui.backstage", json!({"value": true, "page": "home"})).unwrap();
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
         |ui, app: &mut WordApp| {
@@ -1291,4 +1293,74 @@ fn rtl_template_titles_are_right_aligned() {
         wide_thumbnail.max.x,
         wide_text_right,
     );
+}
+
+#[test]
+fn aw_sidebar_matches_excel_groups_and_keeps_account_options_at_bottom() {
+    let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    app.use_document_tabs();
+    app.ui.language = "en".into();
+    app.run("ui.backstage", json!({"value":true,"page":"home"})).unwrap();
+    let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 900.0)).build_ui_state(
+        |ui, app: &mut WordApp| {
+            let ctx = ui.ctx().clone();
+            app.logic(&ctx);
+            app.ui(ui);
+        },
+        app,
+    );
+    h.run_steps(4);
+    let item = |label| {
+        h.get_all_by_role_and_label(egui::accesskit::Role::Button, label)
+            .find(|node| node.rect().left() < aw_workspace::navigation::WIDTH)
+            .unwrap()
+            .rect()
+    };
+    let labels = ["Back", "Home", "New", "Open", "Info", "Save", "Save As", "Print", "Export", "Close", "Account", "Options"];
+    let rows: Vec<_> = labels.iter().map(|label| item(label)).collect();
+    for pair in rows.windows(2) {
+        assert!(pair[0].bottom() <= pair[1].top(), "sidebar rows must not overlap");
+    }
+    for row in &rows {
+        assert!((row.height() - 38.0).abs() < 0.1);
+        assert!((row.width() - 196.0).abs() < 0.1);
+    }
+    assert!(item("Account").top() > item("Close").bottom() + 100.0);
+    assert!(item("Options").bottom() > 860.0);
+}
+
+#[test]
+fn aw_sidebar_does_not_paint_main_menu_over_the_fixed_footer_at_minimum_height() {
+    let mut app = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Services::default());
+    app.use_document_tabs();
+    app.ui.language = "en".into();
+    app.run("ui.backstage", json!({"value":true,"page":"home"})).unwrap();
+    let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1280.0, 480.0)).build_ui_state(
+        |ui, app: &mut WordApp| {
+            let ctx = ui.ctx().clone();
+            app.logic(&ctx);
+            app.ui(ui);
+        },
+        app,
+    );
+    h.run_steps(6);
+    let footer = |label| {
+        h.get_all_by_role_and_label(egui::accesskit::Role::Button, label)
+            .find(|node| node.rect().left() < aw_workspace::navigation::WIDTH)
+            .unwrap()
+            .rect()
+    };
+    let fixed = footer("Account").union(footer("Options"));
+    assert!(
+        h.output().shapes.iter().any(|shape| matches!(&shape.shape,egui::Shape::Text(text) if text.galley.job.text=="Home")),
+        "the main menu must be painted for this check"
+    );
+    for shape in &h.output().shapes {
+        if let egui::Shape::Text(text) = &shape.shape
+            && ["Home", "New", "Open", "Info", "Save", "Save As", "Print", "Export", "Close"].contains(&text.galley.job.text.as_str())
+        {
+            let painted = egui::Rect::from_min_size(text.pos, text.galley.size()).intersect(shape.clip_rect);
+            assert!(!painted.intersects(fixed), "{} must scroll instead of painting over Account/Options", text.galley.job.text);
+        }
+    }
 }

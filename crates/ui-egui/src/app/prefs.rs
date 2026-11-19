@@ -46,6 +46,10 @@ impl WordApp {
         // (the current key) wins; "auto" can't be told from a missing key, so the old size does.
         self.legacy_interface_size =
             self.ui.legacy_interface_size.take().filter(|_| self.ui.interface_size.is_auto()).and_then(|old| theme::legacy_interface_percent(&old));
+        // Migrate the app-local author into the shared AW profile on the first run.
+        if self.ui.profile.name.is_empty() {
+            self.ui.profile.name = self.ui.author.as_deref().unwrap_or_default().chars().take(100).collect();
+        }
         // The session owns the name from here on; `prefs` copies it back when saving.
         // A saved empty name stays empty (#4368); one of only spaces keeps the default.
         if let Some(author) = self.ui.author.take()

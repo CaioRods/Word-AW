@@ -208,9 +208,99 @@ pub fn report() -> Document {
     d
 }
 
+/// Original Brazilian Portuguese business templates. No external template artwork.
+pub fn portuguese(name: &str) -> Option<Document> {
+    let (title, sections): (&str, &[(&str, &str)]) = match name {
+        "aw_report" => (
+            "Relatório profissional",
+            &[
+                ("Resumo executivo", "Apresente o objetivo e os principais resultados deste período."),
+                ("Contexto", "Descreva o cenário, o período analisado e as fontes utilizadas."),
+                ("Resultados", "Registre as evidências e os indicadores relevantes."),
+                ("Próximos passos", "Defina as ações, os responsáveis e os prazos."),
+            ],
+        ),
+        "aw_letter" => (
+            "Carta profissional",
+            &[
+                ("Destinatário", "Nome · Cargo · Empresa"),
+                ("Assunto", "Descreva o motivo desta comunicação."),
+                ("Mensagem", "Prezado(a), apresente sua solicitação ou informação de forma clara e objetiva."),
+                ("Encerramento", "Atenciosamente,\nSeu nome · Cargo · Contato"),
+            ],
+        ),
+        "aw_minutes" => (
+            "Ata de reunião",
+            &[
+                ("Identificação", "Data: dd/mm/aaaa · Horário: hh:mm · Local: a definir"),
+                ("Participantes", "Registre os nomes e as áreas representadas."),
+                ("Pauta", "Liste os assuntos discutidos."),
+                ("Decisões e encaminhamentos", "Para cada decisão, indique a ação, o responsável e o prazo."),
+                ("Próxima reunião", "Data e pauta preliminar: a definir."),
+            ],
+        ),
+        "aw_proposal" => (
+            "Proposta comercial",
+            &[
+                ("Apresentação", "Cliente: nome da empresa · Validade: dd/mm/aaaa"),
+                ("Objetivo", "Descreva a necessidade que será atendida."),
+                ("Escopo e entregas", "Liste os serviços, produtos e critérios de aceite."),
+                ("Investimento", "Valor total: R$ 0,00 · Condições de pagamento: a definir."),
+                ("Cronograma e aprovação", "Registre as etapas, os prazos e os responsáveis pela aprovação."),
+            ],
+        ),
+        "aw_resume" => (
+            "Seu nome",
+            &[
+                ("Contato", "Cidade/UF · telefone · e-mail"),
+                ("Resumo profissional", "Apresente sua área de atuação, experiência e principais competências."),
+                ("Experiência profissional", "Empresa · Cargo · Período\nDescreva suas entregas e resultados."),
+                ("Formação", "Curso · Instituição · Ano de conclusão"),
+                ("Habilidades", "Liste as competências relevantes para a oportunidade."),
+            ],
+        ),
+        "aw_project" => (
+            "Plano de projeto",
+            &[
+                ("Visão geral", "Nome do projeto · Responsável · Data de início"),
+                ("Objetivos e indicadores", "Defina o resultado esperado e como será medido."),
+                ("Escopo", "Liste as entregas e os critérios de conclusão."),
+                ("Cronograma", "Organize as etapas, os responsáveis e os prazos."),
+                ("Riscos e acompanhamento", "Registre riscos, medidas de prevenção e a frequência de acompanhamento."),
+            ],
+        ),
+        _ => return None,
+    };
+    let mut d = Document::new();
+    d.core.title = title.into();
+    d.core.creator = "AWcontrol".into();
+    let mut blocks =
+        vec![Block::Para(styled(title, "Title")), Block::Para(styled("Edite os campos e adapte este modelo ao seu trabalho.", "Subtitle"))];
+    for (heading, text) in sections {
+        blocks.push(Block::Para(styled(heading, "Heading1")));
+        for line in text.split('\n') {
+            let p = Paragraph::with_text(line, CharProps { lang: Some("pt-BR".into()), ..Default::default() });
+            blocks.push(Block::Para(p));
+        }
+    }
+    d.body = blocks.into_iter().map(Arc::new).collect();
+    Some(d)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn aw_portuguese_templates_have_content() {
+        for key in ["aw_report", "aw_letter", "aw_minutes", "aw_proposal", "aw_resume", "aw_project"] {
+            let doc = portuguese(key).unwrap();
+            assert!(doc.word_count() > 30);
+            let layout = wordcraft_layout::layout(&doc, &mut wordcraft_layout::LayoutCache::new(), &Default::default());
+            assert!(!layout.pages.is_empty());
+        }
+        assert!(portuguese("unknown").is_none());
+    }
 
     #[test]
     fn samples_are_valid() {
