@@ -33,7 +33,7 @@ pub(super) struct TypedWord {
 }
 
 /// A column (block) selection: the same x range on every line between two corners.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ColumnBlock {
     /// The stream selection the block was made with (its corners). The block is current only
     /// while `Session::sel` still equals it, so any ordinary caret move or selection drops it.
@@ -50,7 +50,7 @@ pub struct ColumnBlock {
 
 /// Whole table cells selected: rows `rows.0..=rows.1` and every cell of them that reaches into
 /// grid columns `cols.0..=cols.1`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CellRange {
     pub story: StoryRef,
     pub table: Path,
@@ -119,9 +119,10 @@ pub struct FindState {
     pub highlights: Option<(u64, Vec<(Pos, Pos)>)>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(super) struct Undo {
     pub(super) label: String,
+    #[serde(with = "crate::session::workspace::full_document")]
     pub(super) doc: Document,
     pub(super) sel: Selection,
     /// Formatting waiting at the caret (Bold with nothing selected), so Undo takes it back too.
@@ -135,7 +136,7 @@ pub(super) struct Undo {
 pub(super) const EDIT_MARKS: usize = 4;
 
 /// The equation being edited.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MathEdit {
     /// The equation object (its U+FFFC). This moves as the document is edited, so it is not an
     /// IME owner; [`Self::session`] is.

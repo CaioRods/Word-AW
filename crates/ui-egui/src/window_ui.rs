@@ -161,6 +161,7 @@ impl WordApp {
         let WordApp {
             // App-wide.
             external_workspace: _,
+            workspace_transfer: _,
             window_controls: _,
             session: _,
             services: _,

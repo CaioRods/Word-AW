@@ -18,7 +18,7 @@ use crate::CmdError;
 
 /// Document ids are unique in the process, so an id an agent or a window holds never names
 /// another document, even across sessions.
-static NEXT_DOCUMENT_ID: AtomicU64 = AtomicU64::new(1);
+pub(super) static NEXT_DOCUMENT_ID: AtomicU64 = AtomicU64::new(1);
 
 pub(super) fn next_document_id() -> u64 {
     NEXT_DOCUMENT_ID.fetch_add(1, Ordering::Relaxed)

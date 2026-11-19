@@ -344,6 +344,9 @@ impl WordApp {
     /// its window, as [`WordApp::close_requested`] does. True when the app may quit now; the
     /// host closes it once `quit_requested` is set.
     pub fn quit(&mut self) -> bool {
+        if self.workspace_transfer.is_some() {
+            return false;
+        }
         let go = self.close_requested();
         if go {
             self.quit_requested = true;

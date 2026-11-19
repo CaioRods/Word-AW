@@ -67,7 +67,7 @@ pub(super) fn comments(app: &mut WordApp, ui: &mut Ui) {
 /// Drafts belong to one document ([`Session::document_id`](wordcraft_engine::Session::document_id)):
 /// when another document replaces it they are dropped, so a comment there with the same id never
 /// shows them. A draft is removed only once its command succeeds; a refused edit keeps it.
-#[derive(Default)]
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct CommentDrafts {
     document: u64,
     edits: BTreeMap<u32, String>,

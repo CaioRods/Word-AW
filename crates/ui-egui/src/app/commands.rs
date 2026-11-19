@@ -28,6 +28,9 @@ impl WordApp {
     /// Close, Envelopes, Labels and Finish & Merge on a document with unsaved changes first ask
     /// Save / Don't Save / Cancel, and the command runs once that is answered (`ui.saveChanges`).
     pub fn run(&mut self, id: &str, params: Value) -> Result<Value, String> {
+        if self.workspace_transfer.is_some() && id != "ui.workspace.action" {
+            return Err("Aguarde a transferência do documento".into());
+        }
         if self.external_workspace && id == "file.close" {
             let closing = self.quit();
             return Ok(json!({"closing":closing}));
@@ -122,6 +125,9 @@ impl WordApp {
             return self.workspace_action(&params);
         }
 
+        if self.workspace_transfer.is_some() {
+            return Err("Aguarde a transferência do documento".into());
+        }
         self.clear_command_targets(id);
         if let Some(error) = self.document_required_error(id) {
             return Err(error);
@@ -316,10 +322,89 @@ impl WordApp {
     }
 
     fn workspace_action(&mut self, params: &Value) -> Result<Value, String> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let process_id = std::process::id();
+        #[cfg(target_arch = "wasm32")]
+        let process_id = 0u32;
         match params.get("action").and_then(Value::as_str).unwrap_or("") {
             "state" => Ok(
-                json!({"path":self.session.path.as_ref().map(|p| p.to_string_lossy().into_owned()), "embedded":self.external_workspace,"pid":std::process::id()}),
+                json!({"path":self.session.path.as_ref().map(|p| p.to_string_lossy().into_owned()), "embedded":self.external_workspace,"pid":process_id,"count":self.session.documents().len()}),
             ),
+
+            #[cfg(not(target_arch = "wasm32"))]
+            "export" => {
+                if self.workspace_transfer.is_some() {
+                    return Err("Transfer already pending".into());
+                }
+                let id = params.get("name").and_then(serde_json::Value::as_str).ok_or("Missing transfer identifier")?;
+                let document = self.session.document_id();
+                let revision = self.session.rev();
+                let payload = self.session.workspace_checkpoint();
+                let ui = json!({"tab":self.ui.tab,"scroll":[self.canvas.scroll_offset.x,self.canvas.scroll_offset.y],"comments":self.comment_drafts});
+                let checkpoint =
+                    aw_workspace::handoff::Checkpoint { version: 1, app: 1, source_pid: std::process::id(), document, revision, payload, ui };
+                aw_workspace::handoff::write(id, &checkpoint)?;
+                self.workspace_transfer = Some(id.into());
+                Ok(json!({"transfer":id,"pid":process_id,"count":self.session.documents().len()}))
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            "import" => {
+                if !self.external_workspace || self.workspace_transfer.is_some() {
+                    return Err("Destination is not available".into());
+                }
+                let id = params.get("name").and_then(serde_json::Value::as_str).ok_or("Missing transfer identifier")?;
+                let checkpoint = aw_workspace::handoff::read::<wordcraft_engine::WorkspaceCheckpoint>(id, 1)?;
+                self.session.workspace_import(checkpoint.payload)?;
+                self.no_document = None;
+                self.sync_document();
+                if let Some(tab) = checkpoint.ui.get("tab").and_then(serde_json::Value::as_str) {
+                    self.ui.tab = tab.into();
+                }
+                if let Some(comments) = checkpoint.ui.get("comments") {
+                    self.comment_drafts = serde_json::from_value(comments.clone()).map_err(|e| e.to_string())?;
+                }
+                if let (Some(ctx), Some(a)) = (&self.ctx, checkpoint.ui.get("scroll").and_then(serde_json::Value::as_array))
+                    && let (Some(x), Some(y)) = (a.first().and_then(serde_json::Value::as_f64), a.get(1).and_then(serde_json::Value::as_f64))
+                {
+                    ctx.data_mut(|d| d.insert_temp(egui::Id::unique("aw_import_scroll"), egui::vec2(x.max(0.0) as f32, y.max(0.0) as f32)));
+                    self.canvas.scroll_to_caret = false;
+                }
+                self.workspace_transfer = Some(id.into());
+                Ok(json!({"transfer":id,"sourcePid":checkpoint.source_pid}))
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            "commit" => {
+                let id = params.get("name").and_then(serde_json::Value::as_str).ok_or("Missing transfer identifier")?;
+                if self.workspace_transfer.as_deref() != Some(id) {
+                    return Err("Transfer is not pending".into());
+                }
+                let checkpoint = aw_workspace::handoff::read::<serde::de::IgnoredAny>(id, 1)?;
+                if checkpoint.source_pid != std::process::id() {
+                    return Err("Wrong source process".into());
+                }
+                self.session.workspace_commit(checkpoint.document, checkpoint.revision)?;
+                self.workspace_transfer = None;
+                self.sync_document();
+                Ok(json!({"committed":true}))
+            }
+            "abort" => {
+                let id = params.get("name").and_then(serde_json::Value::as_str).ok_or("Missing transfer identifier")?;
+                if !self.external_workspace || self.workspace_transfer.as_deref() != Some(id) {
+                    return Err("No uncommitted import".into());
+                }
+                let doc = self.session.document_id();
+                self.session.close_document(doc).map_err(|e| e.to_string())?;
+                self.sync_document();
+                self.workspace_transfer = None;
+                Ok(json!({"aborted":true}))
+            }
+            "accept" | "cancel" => {
+                let id = params.get("name").and_then(serde_json::Value::as_str).ok_or("Missing transfer identifier")?;
+                if self.workspace_transfer.as_deref() == Some(id) {
+                    self.workspace_transfer = None;
+                }
+                Ok(json!({"ready":true}))
+            }
             "detach" | "embed" => {
                 self.external_workspace = params.get("action").and_then(Value::as_str) == Some("embed");
                 self.window_controls = cfg!(windows) && !self.external_workspace;
