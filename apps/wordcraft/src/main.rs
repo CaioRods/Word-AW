@@ -71,6 +71,20 @@ impl eframe::App for App {
             });
         }
         self.0.logic(ctx);
+        #[cfg(windows)]
+        if let Some(window) = frame.winit_window() {
+            use winit::platform::windows::{CornerPreference, WindowExtWindows};
+            let key = egui::Id::new("aw_native_window_mode");
+            if ctx.data(|d| d.get_temp::<bool>(key)) != Some(self.0.external_workspace) {
+                if ctx.data(|d| d.get_temp::<bool>(key)) == Some(true) && !self.0.external_workspace {
+                    self.1 = None;
+                }
+                window.set_skip_taskbar(self.0.external_workspace);
+                window.set_corner_preference(if self.0.external_workspace { CornerPreference::DoNotRound } else { CornerPreference::Round });
+                ctx.data_mut(|d| d.insert_temp(key, self.0.external_workspace));
+            }
+        }
+
         self.3.show(frame);
         if !self.0.external_workspace {
             let mut window = self.4;
@@ -603,6 +617,7 @@ fn main() -> eframe::Result {
             .with_fullsize_content_view(true)
             .with_decorations(!cfg!(windows) || std::env::var_os("WORDCRAFT_SYSTEM_TITLEBAR").is_some())
             .with_visible(!aw_workspace::control::embedded())
+            .with_taskbar(!aw_workspace::control::embedded())
             .with_titlebar_shown(false)
             .with_title_shown(false),
         ..Default::default()

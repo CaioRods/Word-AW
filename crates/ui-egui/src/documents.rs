@@ -522,6 +522,15 @@ mod aw_host_tests {
         h
     }
     #[test]
+    fn detach_preserves_the_document_and_enables_standalone_window_mode() {
+        let mut h = harness(true);
+        let id = h.state().session.document_id();
+        h.state_mut().execute("ui.workspace.action", serde_json::json!({"action":"detach"})).unwrap();
+        assert!(!h.state().external_workspace);
+        assert_eq!(id, h.state().session.document_id());
+        assert!(h.state_mut().execute("ui.workspace.action", serde_json::json!({"action":"shell"})).is_err());
+    }
+    #[test]
     fn integrated_word_header_reserves_window_controls_beside_the_avatar() {
         let h = harness(false);
         let minimize = h.get_by_label("Minimizar").rect();

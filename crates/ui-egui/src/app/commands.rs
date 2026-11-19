@@ -118,6 +118,10 @@ impl WordApp {
     /// Run a command for a script or an agent (control channel, MCP bridge): never asks first.
     /// UI-level commands (`ui.*`) are handled here, the rest by the engine.
     pub fn execute(&mut self, id: &str, params: Value) -> Result<Value, String> {
+        if id == "ui.workspace.action" {
+            return self.workspace_action(&params);
+        }
+
         self.clear_command_targets(id);
         if let Some(error) = self.document_required_error(id) {
             return Err(error);
@@ -308,6 +312,30 @@ impl WordApp {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn workspace_action(&mut self, params: &Value) -> Result<Value, String> {
+        match params.get("action").and_then(Value::as_str).unwrap_or("") {
+            "state" => Ok(json!({"path":self.session.path, "embedded":self.external_workspace})),
+            "detach" | "embed" => {
+                self.external_workspace = params.get("action").and_then(Value::as_str) == Some("embed");
+                self.window_controls = cfg!(windows) && !self.external_workspace;
+                self.ui.backstage = false;
+                let builder = self.window_builder().clone().with_taskbar(!self.external_workspace);
+                self.set_window_builder(builder);
+                if let Some(ctx) = &self.ctx {
+                    ctx.request_repaint();
+                }
+                Ok(json!({"embedded":self.external_workspace}))
+            }
+            "save" if self.session.path.is_some() => self.run("file.save", json!({})),
+            "save" | "saveAs" => {
+                self.save_as_dialog();
+                Ok(json!({"pending":"saveAs"}))
+            }
+            "rename" => self.run("file.rename", params.clone()),
+            _ => Err("Unsupported AWcontrol action".into()),
         }
     }
 

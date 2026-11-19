@@ -329,14 +329,14 @@ pub fn title_bar(app: &mut WordApp, ui: &mut Ui) {
             ui.painter().add(egui::Shape::mesh(mesh));
             // Drag the window by the title bar (integrated title bar on macOS).
             let drag = ui.interact(full, ui.scope_id().with("title_drag"), Sense::click_and_drag());
-            if drag.drag_started() {
+            if !app.external_workspace && drag.drag_started() {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
             }
             // Elsewhere the system's own title bar above this one moves the window.
             if mac {
                 note_title_drag(ui.ctx(), full);
             }
-            if drag.double_clicked() {
+            if !app.external_workspace && drag.double_clicked() {
                 let max = ui.ctx().input(|i| i.viewport().maximized.unwrap_or(false));
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(!max));
             }

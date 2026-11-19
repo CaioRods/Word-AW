@@ -16,3 +16,5 @@ AWcontrol hospeda cada editor nativo em uma página própria no Windows. A faixa
 O Word usa o cabeçalho integrado com controles nativos desenhados e restaura o amarelo/dourado principal com vermelho secundário no menu.
 
 Uma nova página em branco no AWcontrol inicia como documento editável, sem o marcador de tela inicial vazia do aplicativo independente.
+
+O cabeçalho interno permanece fixo no AWcontrol. Destacar uma aba restaura a janela independente, os controles e o botão próprio na barra de tarefas, mantendo o documento e suas alterações no mesmo processo.
