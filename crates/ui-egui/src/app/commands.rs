@@ -317,7 +317,7 @@ impl WordApp {
 
     fn workspace_action(&mut self, params: &Value) -> Result<Value, String> {
         match params.get("action").and_then(Value::as_str).unwrap_or("") {
-            "state" => Ok(json!({"path":self.session.path, "embedded":self.external_workspace})),
+            "state" => Ok(json!({"path":self.session.path.as_ref().map(|p| p.to_string_lossy().into_owned()), "embedded":self.external_workspace})),
             "detach" | "embed" => {
                 self.external_workspace = params.get("action").and_then(Value::as_str) == Some("embed");
                 self.window_controls = cfg!(windows) && !self.external_workspace;

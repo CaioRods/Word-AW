@@ -521,6 +521,15 @@ mod aw_host_tests {
         h.run_steps(8);
         h
     }
+    #[cfg(unix)]
+    #[test]
+    fn workspace_state_handles_non_unicode_file_names() {
+        use std::os::unix::ffi::OsStringExt;
+        let mut h = harness(true);
+        h.state_mut().session.path = Some(std::path::PathBuf::from(std::ffi::OsString::from_vec(vec![b'a', 255, b'.', b'd', b'o', b'c', b'x'])));
+        let state = h.state_mut().execute("ui.workspace.action", serde_json::json!({"action":"state"})).unwrap();
+        assert!(state["path"].is_string());
+    }
     #[test]
     fn detach_preserves_the_document_and_enables_standalone_window_mode() {
         let mut h = harness(true);
