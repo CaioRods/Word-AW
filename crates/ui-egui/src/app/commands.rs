@@ -325,6 +325,9 @@ impl WordApp {
                 let builder = self.window_builder().clone().with_taskbar(!self.external_workspace);
                 self.set_window_builder(builder);
                 if let Some(ctx) = &self.ctx {
+                    if !self.external_workspace {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(false));
+                    }
                     ctx.request_repaint();
                 }
                 Ok(json!({"embedded":self.external_workspace}))

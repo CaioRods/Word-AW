@@ -74,7 +74,7 @@ impl eframe::App for App {
         #[cfg(windows)]
         if let Some(window) = frame.winit_window() {
             use winit::platform::windows::{CornerPreference, WindowExtWindows};
-            let key = egui::Id::new("aw_native_window_mode");
+            let key = egui::Id::unique("aw_native_window_mode");
             if ctx.data(|d| d.get_temp::<bool>(key)) != Some(self.0.external_workspace) {
                 if ctx.data(|d| d.get_temp::<bool>(key)) == Some(true) && !self.0.external_workspace {
                     self.1 = None;
@@ -639,7 +639,9 @@ fn main() -> eframe::Result {
     let window_builder = options.viewport.clone();
     let saved = saved_ui();
     let restored = saved.as_ref().and_then(|ui| ui.window?.sanitized());
-    if let Some(window) = restored {
+    if !aw_workspace::control::embedded()
+        && let Some(window) = restored
+    {
         options.viewport = window.apply(options.viewport);
     }
     #[cfg(all(unix, not(target_os = "macos")))]
