@@ -27,6 +27,7 @@ mod print;
 mod region;
 #[cfg(target_os = "macos")]
 mod traffic_lights;
+mod workspace_session;
 
 use wordcraft_engine::Session;
 use wordcraft_ui_egui::{
@@ -711,7 +712,7 @@ fn main() -> eframe::Result {
             }
             app.window_controls = cfg!(windows) && !aw_workspace::control::embedded() && std::env::var_os("WORDCRAFT_SYSTEM_TITLEBAR").is_none();
             let mut key_file = None;
-            if let Some(port) = control_port
+            if let Some(port) = control_port.or(if cfg!(windows) { Some(0) } else { None })
                 && let Some((rx, file)) = control_server::start(port, cc.egui_ctx.clone(), wordcraft_control_key::settings_dir().as_deref())
             {
                 app = app.with_control(rx);

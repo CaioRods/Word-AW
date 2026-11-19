@@ -1,5 +1,7 @@
 # WordCraft roadmap
 
+> AWcontrol models/docking update · 2026-11-19: original pt-BR business templates, authenticated discovery of standalone Windows editors, visible resize cursors and guarded hosted tabs. Live return is handled by the central; no document serialization is used. Readiness estimates are unchanged.
+
 > AWcontrol branch update · 2026-11-19: Word AW keeps its hosted header fixed, supports live detachment and explicit file actions, and uses native Windows taskbar/corner APIs. Core parity/readiness estimates are unchanged.
 
 > **Last reviewed:** 2026-10-31 · **Last updated:** 2026-11-17 · **Change:** minor (#3398: persistent screen paper colors; parity estimates unchanged); previously minor (#3693: additional Delete Previous Sentence command and shortcut; Word-parity estimates unchanged)

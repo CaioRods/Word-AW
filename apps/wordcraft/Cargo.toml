@@ -11,7 +11,7 @@ description = "WordCraft desktop app"
 workspace = true
 
 [dependencies]
-aw-workspace = { git = "https://github.com/CaioRods/Launcher-Wilson", rev = "2e017869b310b019b1dcd2527637cc8e138e223d" }
+aw-workspace = { git = "https://github.com/CaioRods/Launcher-Wilson", rev = "f8a833a663429e532721ce75b732270f2fecf487" }
 wordcraft-doc = { workspace = true }
 wordcraft-engine = { workspace = true }
 wordcraft-proof = { workspace = true }

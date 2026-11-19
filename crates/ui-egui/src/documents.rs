@@ -254,7 +254,7 @@ pub(crate) fn untitled_title(english: &str) -> Option<String> {
 
 /// The documents open in this window, with a dot for unsaved changes.
 pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
-    if app.windows.native() || app.external_workspace {
+    if app.windows.native() || (app.external_workspace && app.session.documents().len() <= 1) {
         return;
     }
     let docs = app.session.documents();
@@ -266,6 +266,7 @@ pub(crate) fn document_tabs(ui: &mut egui::Ui, app: &mut WordApp) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let style = crate::document_strip::Style {
         brand: "Word AW",
+        movable: !app.external_workspace,
         accent: t.accent,
         active: t.ribbon,
         text: t.text,

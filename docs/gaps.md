@@ -1,5 +1,7 @@
 # Where WordCraft falls short of Word
 
+> AWcontrol models/docking update · 2026-11-19: original pt-BR business templates, authenticated discovery of standalone Windows editors, visible resize cursors and guarded hosted tabs. Live return is handled by the central; no document serialization is used. Readiness estimates are unchanged.
+
 > AWcontrol branch update · 2026-11-19: Word AW keeps its hosted header fixed, supports live detachment and explicit file actions, and uses native Windows taskbar/corner APIs. Core parity/readiness estimates are unchanged.
 
 > **CLI path update:** 2026-11-04 · Options before a non-Unicode input filename no longer make the CLI reject that filename; text option values still require Unicode; `run --file` and `run --script` retain native paths. No ranked gap or readiness estimate changes.

@@ -219,6 +219,7 @@ fn privacy(s: &Session) -> Value {
 /// proofing language, or the requested template.
 fn new(s: &mut Session, v: &Value) -> CmdResult {
     let doc = match p::str(v, "template").unwrap_or("blank") {
+        key if key.starts_with("aw_") => crate::sample::portuguese(key).ok_or_else(|| CmdError::Params(format!("Unknown template: {key}")))?,
         "sample" => crate::sample::sample_document(),
         "letter" => crate::sample::letter(),
         "resume" => crate::sample::resume(),

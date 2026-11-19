@@ -86,6 +86,7 @@ fn start_with(
             return None;
         }
     };
+    let port = listener.local_addr().ok()?.port();
     let key = match random_key() {
         Ok(k) => k,
         Err(e) => {
@@ -122,6 +123,9 @@ fn start_with(
     match &key_file {
         Some(f) => log::info!("control server listening on 127.0.0.1:{port}, key in {}", f.path().display()),
         None => log::info!("control server listening on 127.0.0.1:{port}"),
+    }
+    if key_file.is_some() {
+        crate::workspace_session::register(port);
     }
     Some((rx, key_file))
 }
@@ -605,18 +609,20 @@ mod tests {
     #[test]
     fn an_accept_thread_spawn_failure_aborts_start_and_removes_the_key() {
         let dir = temp_dir("spawn-failure");
-        let path = wordcraft_control_key::key_path(&dir, 0);
+        let mut path = None;
         let mut bound = None;
         let result = start_with(0, egui::Context::default(), Some(&dir), |listener, ctx, key| {
             bound = Some(listener.local_addr().unwrap());
-            assert_eq!(std::fs::read_to_string(&path).unwrap(), key, "startup wrote the key before spawning");
+            let actual = wordcraft_control_key::key_path(&dir, listener.local_addr().unwrap().port());
+            assert_eq!(std::fs::read_to_string(&actual).unwrap(), key, "startup wrote the actual bound port key before spawning");
+            path = Some(actual);
             serve_with_spawner(listener, ctx, key, small(150, 8), |accept| {
                 drop(accept);
                 Err(std::io::Error::other("injected accept thread spawn failure"))
             })
         });
         assert!(result.is_none(), "a server without its accept thread must not report success");
-        assert!(!path.exists(), "failed startup must remove its published key");
+        assert!(!path.unwrap().exists(), "failed startup must remove its published key");
         let _listener = TcpListener::bind(bound.unwrap()).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
     }
