@@ -345,6 +345,7 @@ impl WordApp {
                     aw_workspace::handoff::Checkpoint { version: 1, app: 1, source_pid: std::process::id(), document, revision, payload, ui };
                 aw_workspace::handoff::write(id, &checkpoint)?;
                 self.workspace_transfer = Some(id.into());
+                self.workspace_transfer_at = now_ms();
                 Ok(json!({"transfer":id,"pid":process_id,"count":self.session.documents().len()}))
             }
             #[cfg(not(target_arch = "wasm32"))]
@@ -370,6 +371,7 @@ impl WordApp {
                     self.canvas.scroll_to_caret = false;
                 }
                 self.workspace_transfer = Some(id.into());
+                self.workspace_transfer_at = now_ms();
                 Ok(json!({"transfer":id,"sourcePid":checkpoint.source_pid}))
             }
             #[cfg(not(target_arch = "wasm32"))]

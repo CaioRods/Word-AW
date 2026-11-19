@@ -162,6 +162,7 @@ impl WordApp {
             // App-wide.
             external_workspace: _,
             workspace_transfer: _,
+            workspace_transfer_at: _,
             window_controls: _,
             session: _,
             services: _,

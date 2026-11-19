@@ -626,6 +626,7 @@ pub struct WordApp {
     /// The enclosing AWcontrol owns document tabs and the native frame.
     pub external_workspace: bool,
     pub(crate) workspace_transfer: Option<String>,
+    pub(crate) workspace_transfer_at: f64,
     pub window_controls: bool,
     pub session: Session,
     pub ui: UiState,

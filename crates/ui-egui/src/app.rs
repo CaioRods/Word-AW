@@ -86,6 +86,7 @@ impl WordApp {
         WordApp {
             external_workspace: false,
             workspace_transfer: None,
+            workspace_transfer_at: 0.0,
             window_controls: false,
             session,
             ui: UiState {
@@ -234,6 +235,14 @@ impl WordApp {
 
     /// Per-frame logic before layout: control requests, screenshots, shortcuts, file drops.
     pub fn logic(&mut self, ctx: &egui::Context) {
+        if self.workspace_transfer.is_some() {
+            if now_ms() - self.workspace_transfer_at > 60000.0 {
+                self.workspace_transfer = None;
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_secs(1));
+            }
+        }
+
         // #2726: egui's AccessKit update must carry the focused node in its node list; a frame
         // that drops it panics in `accesskit_consumer` and closes the window (see `a11y::FocusGuard`).
         ctx.add_plugin(super::a11y::FocusGuard);
